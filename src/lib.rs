@@ -209,15 +209,21 @@ impl<'a> JSONValue<'a> {
     // TODO(robert): This should be an iterator of `JSONValue`s
     // TODO(robert): Handle out of bounds
     pub fn get_nth_array_item(&self, n: usize) -> Result<JSONValue, &'static str> {
-        if self.value_type != JSONValueType::Array {
-            return Err("Cannot parse value as an array");
-        }
         let mut contents = &self.contents[1..];
         for _ in 0..n {
             let (_, value_len) = JSONValue::parse(contents).unwrap();
             contents = &contents[value_len..].trim_start()[1..];
         }
         Ok(JSONValue::parse(contents)?.0)
+    }
+
+    pub fn iter_array(&self) -> Result<JSONArrayIterator<'a>, &'static str> {
+        if self.value_type != JSONValueType::Array {
+            return Err("Cannot parse value as an array");
+        }
+        Ok(JSONArrayIterator {
+            contents: &self.contents[1..],
+        })
     }
 
     // TODO(robert): This should be an iterator of `JSONValue`s
@@ -237,6 +243,24 @@ impl<'a> JSONValue<'a> {
             }
         }
         Err("Key not found")
+    }
+}
+
+pub struct JSONArrayIterator<'a> {
+    contents: &'a str,
+}
+
+impl<'a> Iterator for JSONArrayIterator<'a> {
+    type Item = JSONValue<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match JSONValue::parse(self.contents) {
+            Ok((value, value_len)) => {
+                self.contents = &self.contents[value_len..].trim_start()[1..];
+                Some(value)
+            }
+            _ => None,
+        }
     }
 }
 
@@ -289,9 +313,9 @@ mod test {
 
         assert!(value.read_integer().is_err());
         assert!(value.read_string().is_err());
-        assert_eq!(value.get_nth_array_item(0).unwrap().read_integer(), Ok(1));
-        assert_eq!(value.get_nth_array_item(1).unwrap().read_integer(), Ok(2));
-        assert_eq!(value.get_nth_array_item(2).unwrap().read_integer(), Ok(3));
+        assert_eq!(value.iter_array().unwrap().nth(0).unwrap().read_integer(), Ok(1));
+        assert_eq!(value.iter_array().unwrap().nth(1).unwrap().read_integer(), Ok(2));
+        assert_eq!(value.iter_array().unwrap().nth(2).unwrap().read_integer(), Ok(3));
     }
 
     #[test]

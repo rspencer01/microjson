@@ -45,8 +45,8 @@ pub fn large_array(c: &mut Criterion) {
     let json = JSONValue::parse(&json_payload).unwrap().0;
     c.bench_function("read_array_sequentially", |b| {
         b.iter(|| {
-            for i in 0..10007 {
-                assert_eq!(json.get_nth_array_item(i as usize).unwrap().read_integer(), Ok(i * i));
+            for (i,n) in json.iter_array().unwrap().enumerate() {
+                assert_eq!(i*i, n.read_integer().unwrap() as usize);
             }
         })
     });
