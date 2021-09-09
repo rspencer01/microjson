@@ -17,7 +17,7 @@ pub struct JSONValue<'a> {
     pub value_type: JSONValueType,
 }
 
-fn trim_start<'a>(value: &'a str) -> (&'a str, usize) {
+fn trim_start(value: &str) -> (&str, usize) {
     let value_len = value.len();
     // NOTE(robert): This trims from the "start" which may be different for RTL languages.  What do
     // we do for JSON?
@@ -27,14 +27,13 @@ fn trim_start<'a>(value: &'a str) -> (&'a str, usize) {
 
 impl<'a> JSONValue<'a> {
     pub fn parse(contents: &'a str) -> Result<(JSONValue, usize), &'static str> {
-        let orig_contents = contents;
         let (contents, whitespace_trimmed) = trim_start(contents);
-        let (value_type, value_len) = match contents.chars().nth(0) {
+        let (value_type, value_len) = match contents.chars().next() {
             Some('{') => {
                 let mut value_len = 1;
                 let mut contents = &contents[value_len..];
-                while contents.len() > 0 {
-                    if contents.trim_start().chars().nth(0) == Some('}') {
+                while !contents.is_empty() {
+                    if contents.trim_start().starts_with('}') {
                         value_len += trim_start(contents).1 + 1;
                         break;
                     }
@@ -45,9 +44,9 @@ impl<'a> JSONValue<'a> {
                     let (new_contents, whitespace) = trim_start(&contents[item_len..]);
                     contents = new_contents;
                     value_len += item_len + whitespace;
-                    if contents.len() == 0 {
+                    if contents.is_empty() {
                         return Err("End of stream while parsing object");
-                    } else if contents.chars().nth(0) == Some(':') {
+                    } else if contents.starts_with(':') {
                         value_len += 1;
                         contents = &contents[1..];
                     } else {
@@ -58,12 +57,12 @@ impl<'a> JSONValue<'a> {
                     let (new_contents, whitespace) = trim_start(&contents[item_len..]);
                     contents = new_contents;
                     value_len += item_len + whitespace;
-                    if contents.len() == 0 {
+                    if contents.is_empty() {
                         return Err("End of stream while parsing object");
-                    } else if contents.chars().nth(0) == Some(',') {
+                    } else if contents.starts_with(',') {
                         value_len += 1;
                         contents = &contents[1..];
-                    } else if contents.chars().nth(0) != Some('}') {
+                    } else if !contents.starts_with('}') {
                         return Err("Illegal token while parsing object");
                     }
                 }
@@ -72,8 +71,8 @@ impl<'a> JSONValue<'a> {
             Some('[') => {
                 let mut value_len = 1;
                 let mut contents = &contents[value_len..];
-                while contents.len() > 0 {
-                    if contents.trim_start().chars().nth(0) == Some(']') {
+                while !contents.is_empty() {
+                    if contents.trim_start().starts_with(']') {
                         value_len += trim_start(contents).1 + 1;
                         break;
                     }
@@ -81,19 +80,18 @@ impl<'a> JSONValue<'a> {
                     let (new_contents, whitespace) = trim_start(&contents[item_len..]);
                     contents = new_contents;
                     value_len += item_len + whitespace;
-                    if contents.len() == 0 {
+                    if contents.is_empty() {
                         return Err("End of stream while parsing array");
-                    } else if contents.chars().nth(0) == Some(',') {
+                    } else if contents.starts_with(',') {
                         value_len += 1;
                         contents = &contents[1..];
-                    } else if contents.chars().nth(0) != Some(']') {
+                    } else if !contents.starts_with(']') {
                         return Err("Illegal token while parsing array");
                     }
                 }
                 (JSONValueType::Array, value_len)
             }
             Some('"') => {
-                let mut value_len = 1;
                 let mut value_len = 1;
                 let mut is_escaped = false;
                 for chr in contents[1..].chars() {
@@ -114,10 +112,8 @@ impl<'a> JSONValue<'a> {
                     match chr {
                         '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '-' | 'e'
                         | 'E' | '.' => {
-                            if chr == '-' {
-                                if value_len > 0 {
-                                    return Err("Unexpected '-' while parsing number");
-                                }
+                            if chr == '-' && value_len > 0 {
+                                return Err("Unexpected '-' while parsing number");
                             }
                             value_len += chr.len_utf8();
                         }
@@ -164,7 +160,7 @@ impl<'a> JSONValue<'a> {
             return Err("Cannot parse value as integer");
         }
         let mut ans = 0;
-        let neg = self.contents.chars().nth(0) == Some('-');
+        let neg = self.contents.starts_with('-');
         for chr in self.contents.chars() {
             if !chr.is_digit(10) {
                 return Err("Cannot parse value as integer");
@@ -180,16 +176,17 @@ impl<'a> JSONValue<'a> {
             return Err("Cannot parse value as float");
         }
         let mut ans = 0.0;
-        let neg = self.contents.chars().nth(0) == Some('-');
+        let neg = self.contents.starts_with('-');
         let mut integer = true;
         let mut column = 0.1;
         for chr in self.contents.chars() {
             if chr.is_digit(10) {
                 if integer {
-                    ans = ans * 10.0 + chr.to_digit(10).unwrap() as f32;
+                    ans *= 10.0;
+                    ans += chr.to_digit(10).unwrap() as f32;
                 } else {
-                    ans = ans + chr.to_digit(10).unwrap() as f32 * column;
-                    column = column / 10.;
+                    ans += chr.to_digit(10).unwrap() as f32 * column;
+                    column /= 10.;
                 }
             }
             if chr == '.' {
@@ -229,7 +226,7 @@ impl<'a> JSONValue<'a> {
             return Err("Cannot parse value as an object");
         }
         let mut contents = &self.contents[1..];
-        while contents.len() > 0 {
+        while !contents.is_empty() {
             let (this_key, key_len) = JSONValue::parse(contents).unwrap();
             contents = &contents[key_len..].trim_start()[1..];
             if this_key.read_string().unwrap() == key {
@@ -321,9 +318,12 @@ mod test {
     #[test]
 
     fn this_broke_once() {
-        assert!(JSONValue::parse(r##"
+        assert!(JSONValue::parse(
+            r##"
 [{"a":{"email":"d@"},"m":"#20\n\n.\n"}]
-    "##).is_ok());
+    "##
+        )
+        .is_ok());
     }
 
     #[test]
