@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#![doc = include_str!("../README.md")]
 #![no_std]
 
 /// Denotes the different types of values JSON objects can have
