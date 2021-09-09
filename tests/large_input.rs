@@ -5,7 +5,9 @@ fn large_input_read() {
     let (value, _) = JSONValue::parse(JSON_PAYLOAD).unwrap();
     assert_eq!(
         value
-            .get_nth_array_item(7)
+            .iter_array()
+            .unwrap()
+            .nth(7)
             .unwrap()
             .get_key_value("_id")
             .unwrap()
@@ -14,11 +16,15 @@ fn large_input_read() {
     );
     assert_eq!(
         value
-            .get_nth_array_item(7)
+            .iter_array()
+            .unwrap()
+            .nth(7)
             .unwrap()
             .get_key_value("friends")
             .unwrap()
-            .get_nth_array_item(2)
+            .iter_array()
+            .unwrap()
+            .nth(2)
             .unwrap()
             .get_key_value("name")
             .unwrap()

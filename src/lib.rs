@@ -1,6 +1,16 @@
 #![no_std]
 
-// TODO(robert) floating point number types
+/// Denotes the different types of values JSON objects can have
+///
+/// ### Numbers
+/// Both floats and integers have a value type of [`JSONValueType::Number`].
+///
+/// ### Example
+/// ```
+/// # use tinyjson::*;
+/// let json_value = JSONValue::parse("[1,2,3]").unwrap().0;
+/// assert_eq!(json_value.value_type, JSONValueType::Array);
+/// ```
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum JSONValueType {
     String,
@@ -13,7 +23,7 @@ pub enum JSONValueType {
 
 #[derive(Copy, Clone, Debug)]
 pub struct JSONValue<'a> {
-    pub contents: &'a str,
+    contents: &'a str,
     pub value_type: JSONValueType,
 }
 
@@ -155,12 +165,22 @@ impl<'a> JSONValue<'a> {
         ))
     }
 
+    /// Returns the integer value of this value
+    ///
+    /// If the type is not a [`JSONValueType::Number`], returns an `Err`.
     pub fn read_integer(&self) -> Result<isize, &'static str> {
         if self.value_type != JSONValueType::Number {
             return Err("Cannot parse value as integer");
         }
         let mut ans = 0;
-        let neg = self.contents.starts_with('-');
+        let mut digits = self.contents.chars();
+        let neg;
+        if self.contents.starts_with('-') {
+            neg = true;
+            digits.next();
+        } else {
+            neg = false;
+        }
         for chr in self.contents.chars() {
             if !chr.is_digit(10) {
                 return Err("Cannot parse value as integer");
@@ -206,17 +226,6 @@ impl<'a> JSONValue<'a> {
         Ok(&self.contents[1..self.contents.len() - 1])
     }
 
-    // TODO(robert): This should be an iterator of `JSONValue`s
-    // TODO(robert): Handle out of bounds
-    pub fn get_nth_array_item(&self, n: usize) -> Result<JSONValue, &'static str> {
-        let mut contents = &self.contents[1..];
-        for _ in 0..n {
-            let (_, value_len) = JSONValue::parse(contents).unwrap();
-            contents = &contents[value_len..].trim_start()[1..];
-        }
-        Ok(JSONValue::parse(contents)?.0)
-    }
-
     pub fn iter_array(&self) -> Result<JSONArrayIterator<'a>, &'static str> {
         if self.value_type != JSONValueType::Array {
             return Err("Cannot parse value as an array");
@@ -246,6 +255,7 @@ impl<'a> JSONValue<'a> {
     }
 }
 
+/// An iterator through a JSON array value
 pub struct JSONArrayIterator<'a> {
     contents: &'a str,
 }
@@ -313,9 +323,18 @@ mod test {
 
         assert!(value.read_integer().is_err());
         assert!(value.read_string().is_err());
-        assert_eq!(value.iter_array().unwrap().nth(0).unwrap().read_integer(), Ok(1));
-        assert_eq!(value.iter_array().unwrap().nth(1).unwrap().read_integer(), Ok(2));
-        assert_eq!(value.iter_array().unwrap().nth(2).unwrap().read_integer(), Ok(3));
+        assert_eq!(
+            value.iter_array().unwrap().nth(0).unwrap().read_integer(),
+            Ok(1)
+        );
+        assert_eq!(
+            value.iter_array().unwrap().nth(1).unwrap().read_integer(),
+            Ok(2)
+        );
+        assert_eq!(
+            value.iter_array().unwrap().nth(2).unwrap().read_integer(),
+            Ok(3)
+        );
     }
 
     #[test]

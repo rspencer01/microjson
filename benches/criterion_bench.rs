@@ -1,6 +1,6 @@
-use std::path::PathBuf;
-use std::fs::read_to_string;
 use criterion::{criterion_group, criterion_main, Criterion};
+use std::fs::read_to_string;
+use std::path::PathBuf;
 
 use tinyjson::*;
 
@@ -9,9 +9,7 @@ pub fn massive_random(c: &mut Criterion) {
     path.push("resources/test/massive_random.json");
     let json_payload = read_to_string(&path).unwrap();
 
-    c.bench_function("load", |b| {
-        b.iter(|| JSONValue::parse(&json_payload))
-    });
+    c.bench_function("load", |b| b.iter(|| JSONValue::parse(&json_payload)));
 
     let value = JSONValue::parse(&json_payload);
     c.bench_function("single_retrieve", |b| {
@@ -20,7 +18,9 @@ pub fn massive_random(c: &mut Criterion) {
                 value
                     .unwrap()
                     .0
-                    .get_nth_array_item(5)
+                    .iter_array()
+                    .unwrap()
+                    .nth(5)
                     .unwrap()
                     .get_key_value("actor")
                     .unwrap()
@@ -38,15 +38,13 @@ pub fn large_array(c: &mut Criterion) {
     path.push("resources/test/list_of_squares.json");
     let json_payload = read_to_string(&path).unwrap();
 
-    c.bench_function("load_array", |b| {
-        b.iter(|| JSONValue::parse(&json_payload))
-    });
+    c.bench_function("load_array", |b| b.iter(|| JSONValue::parse(&json_payload)));
 
     let json = JSONValue::parse(&json_payload).unwrap().0;
     c.bench_function("read_array_sequentially", |b| {
         b.iter(|| {
-            for (i,n) in json.iter_array().unwrap().enumerate() {
-                assert_eq!(i*i, n.read_integer().unwrap() as usize);
+            for (i, n) in json.iter_array().unwrap().enumerate() {
+                assert_eq!(i * i, n.read_integer().unwrap() as usize);
             }
         })
     });
@@ -54,7 +52,14 @@ pub fn large_array(c: &mut Criterion) {
         b.iter(|| {
             let mut i = 1;
             for _ in 0..10007 {
-                assert_eq!(json.get_nth_array_item(i as usize).unwrap().read_integer(), Ok(i * i));
+                assert_eq!(
+                    json.iter_array()
+                        .unwrap()
+                        .nth(i as usize)
+                        .unwrap()
+                        .read_integer(),
+                    Ok(i * i)
+                );
                 i = (i * 5) % 10007;
             }
         })
