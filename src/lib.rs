@@ -52,7 +52,11 @@ fn trim_start(value: &str) -> (&str, usize) {
 }
 
 impl<'a> JSONValue<'a> {
-    pub fn parse(contents: &'a str) -> Result<(JSONValue, usize), &'static str> {
+    pub fn parse(contents: &'a str) -> Result<JSONValue, &'static str> {
+        Ok(JSONValue::parse_with_len(contents)?.0)
+    }
+
+    fn parse_with_len(contents: &'a str) -> Result<(JSONValue, usize), &'static str> {
         let (contents, whitespace_trimmed) = trim_start(contents);
         let (value_type, value_len) = match contents.chars().next() {
             Some('{') => {
@@ -63,7 +67,7 @@ impl<'a> JSONValue<'a> {
                         value_len += trim_start(contents).1 + 1;
                         break;
                     }
-                    let (item, item_len) = JSONValue::parse(contents)?;
+                    let (item, item_len) = JSONValue::parse_with_len(contents)?;
                     if item.value_type != JSONValueType::String {
                         return Err("Cannot parse object key");
                     }
@@ -79,7 +83,7 @@ impl<'a> JSONValue<'a> {
                         return Err("Illegal token while parsing object");
                     }
 
-                    let (_, item_len) = JSONValue::parse(contents)?;
+                    let (_, item_len) = JSONValue::parse_with_len(contents)?;
                     let (new_contents, whitespace) = trim_start(&contents[item_len..]);
                     contents = new_contents;
                     value_len += item_len + whitespace;
@@ -102,7 +106,7 @@ impl<'a> JSONValue<'a> {
                         value_len += trim_start(contents).1 + 1;
                         break;
                     }
-                    let (_, item_len) = JSONValue::parse(contents)?;
+                    let (_, item_len) = JSONValue::parse_with_len(contents)?;
                     let (new_contents, whitespace) = trim_start(&contents[item_len..]);
                     contents = new_contents;
                     value_len += item_len + whitespace;
@@ -258,12 +262,12 @@ impl<'a> JSONValue<'a> {
         }
         let mut contents = &self.contents[1..];
         while !contents.is_empty() {
-            let (this_key, key_len) = JSONValue::parse(contents).unwrap();
+            let (this_key, key_len) = JSONValue::parse_with_len(contents).unwrap();
             contents = &contents[key_len..].trim_start()[1..];
             if this_key.read_string().unwrap() == key {
-                return Ok(JSONValue::parse(contents)?.0);
+                return JSONValue::parse(contents);
             } else {
-                let (_, value_len) = JSONValue::parse(contents).unwrap();
+                let (_, value_len) = JSONValue::parse_with_len(contents).unwrap();
                 contents = &contents[value_len..].trim_start()[1..];
             }
         }
@@ -280,7 +284,7 @@ impl<'a> Iterator for JSONArrayIterator<'a> {
     type Item = JSONValue<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match JSONValue::parse(self.contents) {
+        match JSONValue::parse_with_len(self.contents) {
             Ok((value, value_len)) => {
                 self.contents = &self.contents[value_len..].trim_start()[1..];
                 Some(value)
@@ -296,7 +300,7 @@ mod test {
 
     #[test]
     fn integer() {
-        let (value, value_len) = JSONValue::parse("42").unwrap();
+        let (value, value_len) = JSONValue::parse_with_len("42").unwrap();
         assert_eq!(value.value_type, JSONValueType::Number);
         assert_eq!(value_len, 2);
         assert_eq!(value.read_integer(), Ok(42));
@@ -305,7 +309,7 @@ mod test {
 
     #[test]
     fn float() {
-        let (value, value_len) = JSONValue::parse("3.141592").unwrap();
+        let (value, value_len) = JSONValue::parse_with_len("3.141592").unwrap();
         assert_eq!(value.value_type, JSONValueType::Number);
         assert_eq!(value_len, "3.141592".len());
         assert!(value.read_integer().is_err());
@@ -315,7 +319,7 @@ mod test {
 
     #[test]
     fn string() {
-        let (value, value_len) = JSONValue::parse("\"hello world\"").unwrap();
+        let (value, value_len) = JSONValue::parse_with_len("\"hello world\"").unwrap();
         assert_eq!(value.value_type, JSONValueType::String);
         assert_eq!(value_len, "\"hello world\"".len());
         assert!(value.read_integer().is_err());
@@ -324,16 +328,16 @@ mod test {
 
     #[test]
     fn array() {
-        let (value, value_len) = JSONValue::parse("[1,2,3]").unwrap();
+        let (value, value_len) = JSONValue::parse_with_len("[1,2,3]").unwrap();
         assert_eq!(value.value_type, JSONValueType::Array);
         assert_eq!(value_len, "[1,2,3]".len());
-        let (value, value_len) = JSONValue::parse("[]").unwrap();
+        let (value, value_len) = JSONValue::parse_with_len("[]").unwrap();
         assert_eq!(value.value_type, JSONValueType::Array);
         assert_eq!(value_len, "[]".len());
-        let (value, value_len) = JSONValue::parse("  [\n  ]").unwrap();
+        let (value, value_len) = JSONValue::parse_with_len("  [\n  ]").unwrap();
         assert_eq!(value.value_type, JSONValueType::Array);
         assert_eq!(value_len, "  [\n  ]".len());
-        let (value, value_len) = JSONValue::parse("[1  ,  2\t,\r3\n]").unwrap();
+        let (value, value_len) = JSONValue::parse_with_len("[1  ,  2\t,\r3\n]").unwrap();
         assert_eq!(value.value_type, JSONValueType::Array);
         assert_eq!(value_len, "[1  ,  2\t,\r3\n]".len());
 
@@ -359,7 +363,7 @@ mod test {
         \"id\": 0,
         \"name\": \"Ginger Fuller\"
       }";
-        let (value, value_len) = JSONValue::parse(input).unwrap();
+        let (value, value_len) = JSONValue::parse_with_len(input).unwrap();
         assert_eq!(value.value_type, JSONValueType::Object);
         assert_eq!(value_len, input.len());
 
@@ -387,20 +391,20 @@ mod test {
 
     #[test]
     fn integer_whitespace() {
-        let (value, value_len) = JSONValue::parse("  42	").unwrap();
+        let (value, value_len) = JSONValue::parse_with_len("  42	").unwrap();
         assert_eq!(value.value_type, JSONValueType::Number);
         assert_eq!(value_len, "  42".len());
-        let (value, value_len) = JSONValue::parse("\n 42\r").unwrap();
+        let (value, value_len) = JSONValue::parse_with_len("\n 42\r").unwrap();
         assert_eq!(value.value_type, JSONValueType::Number);
         assert_eq!(value_len, "\n 42".len());
     }
 
     #[test]
     fn string_whitespace() {
-        let (value, value_len) = JSONValue::parse("  \"foo me a bar\"	").unwrap();
+        let (value, value_len) = JSONValue::parse_with_len("  \"foo me a bar\"	").unwrap();
         assert_eq!(value.value_type, JSONValueType::String);
         assert_eq!(value_len, "  \"foo me a bar\"".len());
-        let (value, value_len) = JSONValue::parse("\n \"a bar\n I said.\"\r").unwrap();
+        let (value, value_len) = JSONValue::parse_with_len("\n \"a bar\n I said.\"\r").unwrap();
         assert_eq!(value.value_type, JSONValueType::String);
         assert_eq!(value_len, "\n \"a bar\n I said.\"".len());
     }

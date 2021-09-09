@@ -17,7 +17,6 @@ pub fn massive_random(c: &mut Criterion) {
             assert_eq!(
                 value
                     .unwrap()
-                    .0
                     .iter_array()
                     .unwrap()
                     .nth(5)
@@ -40,7 +39,7 @@ pub fn large_array(c: &mut Criterion) {
 
     c.bench_function("load_array", |b| b.iter(|| JSONValue::parse(&json_payload)));
 
-    let json = JSONValue::parse(&json_payload).unwrap().0;
+    let json = JSONValue::parse(&json_payload).unwrap();
     c.bench_function("read_array_sequentially", |b| {
         b.iter(|| {
             for (i, n) in json.iter_array().unwrap().enumerate() {

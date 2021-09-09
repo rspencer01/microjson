@@ -1,8 +1,8 @@
-use tinyjson::*;
+use microjson::*;
 
 #[test]
 fn large_input_read() {
-    let (value, _) = JSONValue::parse(JSON_PAYLOAD).unwrap();
+    let value = JSONValue::parse(JSON_PAYLOAD).unwrap();
     assert_eq!(
         value
             .iter_array()
