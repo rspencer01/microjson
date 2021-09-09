@@ -2,7 +2,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use std::fs::read_to_string;
 use std::path::PathBuf;
 
-use tinyjson::*;
+use microjson::*;
 
 pub fn massive_random(c: &mut Criterion) {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));

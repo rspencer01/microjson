@@ -1,4 +1,4 @@
-// tinyjson - a no_std json parser in rust
+// microjson - a no_std json parser in rust
 // Copyright (C) 2021  Robert Spencer
 //
 // This program is free software: you can redistribute it and/or modify
@@ -23,8 +23,8 @@
 ///
 /// ### Example
 /// ```
-/// # use tinyjson::*;
-/// let json_value = JSONValue::parse("[1,2,3]").unwrap().0;
+/// # use microjson::*;
+/// let json_value = JSONValue::parse("[1,2,3]").unwrap();
 /// assert_eq!(json_value.value_type, JSONValueType::Array);
 /// ```
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
