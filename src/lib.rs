@@ -202,7 +202,7 @@ impl<'a> JSONValue<'a> {
         } else {
             neg = false;
         }
-        for chr in self.contents.chars() {
+        for chr in digits {
             if !chr.is_digit(10) {
                 return Err("Cannot parse value as integer");
             }
@@ -247,6 +247,9 @@ impl<'a> JSONValue<'a> {
         Ok(&self.contents[1..self.contents.len() - 1])
     }
 
+    /// Constructs an iterator over this array value
+    ///
+    /// If the value is not an [`JSONValueType::Array`], returns an error.
     pub fn iter_array(&self) -> Result<JSONArrayIterator<'a>, &'static str> {
         if self.value_type != JSONValueType::Array {
             return Err("Cannot parse value as an array");
@@ -306,6 +309,8 @@ mod test {
         assert_eq!(value_len, 2);
         assert_eq!(value.read_integer(), Ok(42));
         assert!(value.read_string().is_err());
+
+        assert_eq!(JSONValue::parse("-98").unwrap().read_integer(), Ok(-98));
     }
 
     #[test]

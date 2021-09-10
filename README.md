@@ -35,7 +35,6 @@ let string = JSONValue::parse("\"hello there\"")
 let value = integer.read_string();
 ```
 
-
 You can read arrays like this:
 ```rust
 use microjson::JSONValue;
