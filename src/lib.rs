@@ -235,6 +235,13 @@ impl<'a> JSONValue<'a> {
     /// Returns the integer value of this value
     ///
     /// If the type is not a [`JSONValueType::Number`], returns an `Err`.
+    ///
+    /// ### Example
+    /// ```
+    /// # use microjson::JSONValue;
+    /// let value = JSONValue::parse("-24").unwrap();
+    /// assert_eq!(value.read_integer(), Ok(-24));
+    /// ```
     pub fn read_integer(&self) -> Result<isize, &'static str> {
         if self.value_type != JSONValueType::Number {
             return Err("Cannot parse value as integer");
@@ -258,6 +265,9 @@ impl<'a> JSONValue<'a> {
         Ok(if neg { -ans } else { ans })
     }
 
+    /// Returns the float value of this JSONValue
+    ///
+    /// If the type is not a [`JSONValueType::Number`], returns an `Err`.
     pub fn read_float(&self) -> Result<f32, &'static str> {
         if self.value_type != JSONValueType::Number {
             return Err("Cannot parse value as float");
