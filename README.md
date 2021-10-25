@@ -84,3 +84,20 @@ match object.value_type {
     JSONValueType::Null => {},
 }
 ```
+
+Verifying Data
+--------------
+
+To load some JSON, you need only call
+```rust
+# use microjson::JSONValue;
+let value = JSONValue::parse(r#" [1,2,3,5"foo"] "#);
+```
+However, this data is malformed.  [`JSONValue::parse`] will return an `Ok` result, as to determine that the data was corrupt would require scanning through the entire string.
+The error would only be reported when you attempted to iterate to the fourth item and parse it as a value.
+
+If you need to know that the data is sound, use [`JSONValue::verify`].  Alternatively, you can parse and verify in one step.
+```rust
+# use microjson::JSONValue;
+let value = JSONValue::parse_and_verify(r#" [1,2,3,5"foo"] "#);
+```

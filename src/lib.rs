@@ -54,7 +54,53 @@ fn trim_start(value: &str) -> (&str, usize) {
 
 impl<'a> JSONValue<'a> {
     pub fn parse(contents: &'a str) -> Result<JSONValue, &'static str> {
-        Ok(JSONValue::parse_with_len(contents)?.0)
+        let (contents, _) = trim_start(contents);
+        let value_type = JSONValue::peek_value_type(contents)?;
+        Ok(JSONValue {
+            contents, value_type
+        })
+    }
+
+    /// Guess the type of the JSON variable serialised in the input string
+    ///
+    /// This function will never give the _wrong_ type, though it may return a type even if the
+    /// input string is not well formed.
+    fn peek_value_type(contents: &'a str) -> Result<JSONValueType, &'static str> {
+        // The contents must be trimmed
+        match contents.chars().next() {
+            Some('{') => {
+                Ok(JSONValueType::Object)
+            }
+            Some('[') => {
+                Ok(JSONValueType::Array)
+            }
+            Some('"') => {
+                Ok(JSONValueType::String)
+            }
+            Some('0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '-') => {
+                Ok(JSONValueType::Number)
+            }
+            Some('t' | 'f') => {
+                Ok(JSONValueType::Bool)
+            }
+            Some('n') => {
+                Ok(JSONValueType::Null)
+            }
+            _ => {
+                return Err("Could not interpret start of token");
+            }
+        }
+    }
+
+    pub fn verify(&self) -> Result<(), &'static str> {
+        JSONValue::parse_with_len(self.contents)?;
+        Ok(())
+    }
+
+    pub fn parse_and_verify(contents: &'a str) -> Result<JSONValue, &'static str> {
+        let value = JSONValue::parse(contents)?;
+        value.verify()?;
+        Ok(value)
     }
 
     fn parse_with_len(contents: &'a str) -> Result<(JSONValue, usize), &'static str> {
@@ -269,7 +315,7 @@ impl<'a> JSONValue<'a> {
             let (this_key, key_len) = JSONValue::parse_with_len(contents).unwrap();
             contents = &contents[key_len..].trim_start()[1..];
             if this_key.read_string().unwrap() == key {
-                return JSONValue::parse(contents);
+                return JSONValue::parse_with_len(contents).map(|x| x.0);
             } else {
                 let (_, value_len) = JSONValue::parse_with_len(contents).unwrap();
                 contents = &contents[value_len..].trim_start()[1..];
@@ -413,5 +459,33 @@ mod test {
         let (value, value_len) = JSONValue::parse_with_len("\n \"a bar\n I said.\"\r").unwrap();
         assert_eq!(value.value_type, JSONValueType::String);
         assert_eq!(value_len, "\n \"a bar\n I said.\"".len());
+    }
+
+    #[test]
+    fn peeking_value_type() {
+        assert_eq!(JSONValue::peek_value_type("123"), Ok(JSONValueType::Number));
+        assert_eq!(JSONValue::peek_value_type("12.3"), Ok(JSONValueType::Number));
+        assert_eq!(JSONValue::peek_value_type("12.3e10"), Ok(JSONValueType::Number));
+        assert_eq!(JSONValue::peek_value_type("-3"), Ok(JSONValueType::Number));
+        assert_eq!(JSONValue::peek_value_type("-3.5"), Ok(JSONValueType::Number));
+        assert_eq!(JSONValue::peek_value_type("null"), Ok(JSONValueType::Null));
+        assert_eq!(JSONValue::peek_value_type("true"), Ok(JSONValueType::Bool));
+        assert_eq!(JSONValue::peek_value_type("false"), Ok(JSONValueType::Bool));
+        assert_eq!(JSONValue::peek_value_type("[]"), Ok(JSONValueType::Array));
+        assert_eq!(JSONValue::peek_value_type("[12]"), Ok(JSONValueType::Array));
+        assert_eq!(JSONValue::peek_value_type("[1,2]"), Ok(JSONValueType::Array));
+        assert_eq!(JSONValue::peek_value_type("[[]]"), Ok(JSONValueType::Array));
+        assert_eq!(JSONValue::peek_value_type("\"foo\""), Ok(JSONValueType::String));
+        assert_eq!(JSONValue::peek_value_type("{}"), Ok(JSONValueType::Object));
+        assert_eq!(JSONValue::peek_value_type("{\"a\":2}"), Ok(JSONValueType::Object));
+        assert!(JSONValue::peek_value_type("<").is_err());
+        assert!(JSONValue::peek_value_type("bar").is_err());
+    }
+
+    #[test]
+    fn verifying() {
+        assert!(JSONValue::parse_and_verify(" 123 ").is_ok());
+        assert!(JSONValue::parse_and_verify("[123]").is_ok());
+        assert!(JSONValue::parse_and_verify("\"foo\"").is_ok());
     }
 }
