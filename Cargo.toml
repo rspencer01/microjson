@@ -1,12 +1,13 @@
 [package]
 name = "microjson"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2018"
 license = "GPL-3.0-only"
 repository = "https://github.com/rspencer01/microjson"
 keywords = ["json", "no_std"]
 description = "No frills JSON parsing without allocations"
 readme = "README.md"
+documentation = "https://docs.rs/microjson/latest"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
