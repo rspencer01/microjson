@@ -7,7 +7,7 @@ Small JSON Parser in `no_std`
 
 This library reads and parses JSON strings.
 
-Its intended use case is to read a JSON payload once
+Its intended use case is to read a JSON payload once.
 
 It does _not_ serialise data.
 
@@ -17,7 +17,7 @@ Sample usage
 Simply put this in your `Cargo.toml`:
 ```toml
 [dependencies]
-microjson = { git = "https://github.com/rspencer01/microjson" }
+microjson = "0.1"
 ```
 
 You can read strings and integers easily:
@@ -101,3 +101,15 @@ If you need to know that the data is sound, use [`JSONValue::verify`].  Alternat
 # use microjson::JSONValue;
 let value = JSONValue::parse_and_verify(r#" [1,2,3,5"foo"] "#);
 ```
+
+Features
+--------
+  * [x] All JSON types
+  * [ ] Strings with escape sequences
+  * [x] Positive and negative integers
+  * [x] Floats with decimals
+  * [ ] Floats with exponents
+  * [x] Iterators over arrays
+  * [x] Object key lookup
+  * [ ] Iterators over objects
+  * [x] Verify JSON

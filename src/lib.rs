@@ -92,6 +92,20 @@ impl<'a> JSONValue<'a> {
         }
     }
 
+    /// Confirm that this [`JSONValue`] is proper JSON
+    ///
+    /// This will scan through the entire JSON and confirm that it is properly formatted.
+    /// See also [`JSONValue::parse_and_verify`]
+    ///
+    /// ## Example
+    /// ```
+    /// # use microjson::JSONValue;
+    /// let value = JSONValue::parse("[1,{},\"foo\"]").unwrap();
+    /// assert!(value.verify().is_ok());
+    ///
+    /// let value = JSONValue::parse("[,,{\"").unwrap(); // This will not error
+    /// assert!(value.verify().is_err());
+    /// ```
     pub fn verify(&self) -> Result<(), &'static str> {
         JSONValue::parse_with_len(self.contents)?;
         Ok(())
@@ -232,7 +246,7 @@ impl<'a> JSONValue<'a> {
         ))
     }
 
-    /// Returns the integer value of this value
+    /// Reads the [`JSONValue`] as an integer
     ///
     /// If the type is not a [`JSONValueType::Number`], returns an `Err`.
     ///
@@ -265,9 +279,16 @@ impl<'a> JSONValue<'a> {
         Ok(if neg { -ans } else { ans })
     }
 
-    /// Returns the float value of this JSONValue
+    /// Reads the [`JSONValue`] as a float
     ///
     /// If the type is not a [`JSONValueType::Number`], returns an `Err`.
+    ///
+    /// ### Example
+    /// ```
+    /// # use microjson::JSONValue;
+    /// let value = JSONValue::parse("2.4").unwrap();
+    /// assert_eq!(value.read_float(), Ok(2.4));
+    /// ```
     pub fn read_float(&self) -> Result<f32, &'static str> {
         if self.value_type != JSONValueType::Number {
             return Err("Cannot parse value as float");
@@ -294,6 +315,14 @@ impl<'a> JSONValue<'a> {
         Ok(if neg { -ans } else { ans })
     }
 
+    /// Read the [`JSONValue`] as a string
+    ///
+    /// ## Example
+    /// ```
+    /// # use microjson::JSONValue;
+    /// let value = JSONValue::parse("\"this is a string\"").unwrap();
+    /// assert_eq!(value.read_string(), Ok("this is a string"));
+    /// ```
     // TODO(robert): String can be escaped and all manner of trickery.  We need to deal with that
     // by returning some kind of iterator over characters here.
     pub fn read_string(&self) -> Result<&str, &'static str> {
