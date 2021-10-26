@@ -260,23 +260,8 @@ impl<'a> JSONValue<'a> {
         if self.value_type != JSONValueType::Number {
             return Err("Cannot parse value as integer");
         }
-        let mut ans = 0;
-        let mut digits = self.contents.chars();
-        let neg;
-        if self.contents.starts_with('-') {
-            neg = true;
-            digits.next();
-        } else {
-            neg = false;
-        }
-        for chr in digits {
-            if !chr.is_digit(10) {
-                return Err("Cannot parse value as integer");
-            }
-            ans = ans * 10 + chr.to_digit(10).unwrap() as isize;
-        }
-
-        Ok(if neg { -ans } else { ans })
+        let contents = self.contents.trim_end();
+        str::parse(contents).or_else(|_| Err("Cannot parse as integer"))
     }
 
     /// Reads the [`JSONValue`] as a float
@@ -293,26 +278,8 @@ impl<'a> JSONValue<'a> {
         if self.value_type != JSONValueType::Number {
             return Err("Cannot parse value as float");
         }
-        let mut ans = 0.0;
-        let neg = self.contents.starts_with('-');
-        let mut integer = true;
-        let mut column = 0.1;
-        for chr in self.contents.chars() {
-            if chr.is_digit(10) {
-                if integer {
-                    ans *= 10.0;
-                    ans += chr.to_digit(10).unwrap() as f32;
-                } else {
-                    ans += chr.to_digit(10).unwrap() as f32 * column;
-                    column /= 10.;
-                }
-            }
-            if chr == '.' {
-                integer = false;
-            }
-        }
-
-        Ok(if neg { -ans } else { ans })
+        let contents = self.contents.trim_end();
+        str::parse(contents).or_else(|_| Err("Cannot parse as float"))
     }
 
     /// Read the [`JSONValue`] as a string
@@ -396,6 +363,7 @@ mod test {
         assert!(value.read_string().is_err());
 
         assert_eq!(JSONValue::parse("-98").unwrap().read_integer(), Ok(-98));
+        assert_eq!(JSONValue::parse("-99 ").unwrap().read_integer(), Ok(-99));
     }
 
     #[test]
