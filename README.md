@@ -22,58 +22,58 @@ microjson = "0.1"
 
 You can read strings and integers easily:
 ```rust
-use microjson::JSONValue;
+# use microjson::JSONValue;
+# fn main() -> Result<(), &'static str> {
+let integer = JSONValue::parse("42")?;
 
-let integer = JSONValue::parse("42")
-    .expect("Could not parse json");
+let value : isize = integer.read_integer()?;
 
-let value = integer.read_integer();
+let string = JSONValue::parse("\"hello there\"")?;
 
-let string = JSONValue::parse("\"hello there\"")
-    .expect("Could not parse json");
-
-let value = integer.read_string();
+let value : &str = string.read_string()?;
+# Ok(())
+# }
 ```
 
 You can read arrays like this:
 ```rust
-use microjson::JSONValue;
-
+# use microjson::JSONValue;
+# fn main() -> Result<(), &'static str> {
 let input = r#" [0, 1, 2, 3, 4, 5] "#;
 
-let array = JSONValue::parse(input)
-    .expect("Could not parse json");
+let array = JSONValue::parse(input)?;
 
-for (n, item) in array.iter_array().unwrap().enumerate() {
-    let value = item.read_integer()
-                  .expect("Item was not an integer");
+for (n, item) in array.iter_array()?.enumerate() {
+    let value = item.read_integer()?;
     assert_eq!(value, n as isize);
 }
+# Ok(())
+# }
 ```
 
 And, of course, any combination of the above:
 ```rust
-use microjson::JSONValue;
-
+# use microjson::JSONValue;
+# fn main() -> Result<(), &'static str> {
 let input = r#" { "arr": [3, "foo", 3.625, false] } "#;
 
-let object = JSONValue::parse(input)
-              .expect("Could not parse json");
+let object = JSONValue::parse(input)?;
 
 assert_eq!(
-    object.get_key_value("arr").unwrap().iter_array().unwrap().nth(2).unwrap().read_float(),
-    Ok(3.625)
+    object.get_key_value("arr")?.iter_array()?.nth(2).unwrap().read_float()?,
+    3.625
 );
+# Ok(())
+# }
 ```
 
 If you are unsure what kind of data you have, you can query the [`JSONValueType`].
 ```rust
-use microjson::{JSONValue, JSONValueType};
-
+# use microjson::{JSONValue, JSONValueType};
+# fn main() -> Result<(), &'static str> {
 let input = r#" 3.1415 "#;
 
-let object = JSONValue::parse(input)
-              .expect("Could not parse json");
+let object = JSONValue::parse(input)?;
 
 match object.value_type {
     JSONValueType::String => {},
@@ -83,6 +83,8 @@ match object.value_type {
     JSONValueType::Bool => {},
     JSONValueType::Null => {},
 }
+# Ok(())
+# }
 ```
 
 Verifying Data
