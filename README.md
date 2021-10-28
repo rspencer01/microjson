@@ -108,9 +108,8 @@ Features
 --------
   * [x] All JSON types
   * [ ] Strings with escape sequences
-  * [x] Positive and negative integers
-  * [x] Floats with decimals
-  * [ ] Floats with exponents
+  * [x] Parse ints (using [built in parser](https://doc.rust-lang.org/1.56.0/std/primitive.isize.html#method.from_str_radix))
+  * [x] Parse floats (using [built in parser](https://doc.rust-lang.org/1.56.0/std/primitive.f32.html#method.from_str))
   * [x] Iterators over arrays
   * [x] Object key lookup
   * [ ] Iterators over objects
