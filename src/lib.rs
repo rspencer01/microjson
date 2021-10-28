@@ -43,32 +43,31 @@ impl core::fmt::Debug for JSONParsingError {
         match self {
             &Self::KeyNotFound => {
                 write!(f, "Key not found")
-            },
+            }
             &Self::EndOfStream => {
                 write!(f, "Stream ended while parsing JSON")
-            },
+            }
             &Self::UnexpectedToken => {
                 write!(f, "Unexpected token")
-            },
+            }
             &Self::CannotParseArray => {
                 write!(f, "Error parsing array")
-            },
+            }
             &Self::CannotParseFloat => {
                 write!(f, "Error parsing float")
-            },
+            }
             &Self::CannotParseInteger => {
                 write!(f, "Error parsing integer")
-            },
+            }
             &Self::CannotParseString => {
                 write!(f, "Error parsing string")
-            },
+            }
             &Self::CannotParseObject => {
                 write!(f, "Error parsing object")
             }
         }
     }
 }
-
 
 /// Denotes the different types of values JSON objects can have
 ///
@@ -110,7 +109,8 @@ impl<'a> JSONValue<'a> {
         let (contents, _) = trim_start(contents);
         let value_type = JSONValue::peek_value_type(contents)?;
         Ok(JSONValue {
-            contents, value_type
+            contents,
+            value_type,
         })
     }
 
@@ -121,24 +121,14 @@ impl<'a> JSONValue<'a> {
     fn peek_value_type(contents: &'a str) -> Result<JSONValueType, JSONParsingError> {
         // The contents must be trimmed
         match contents.chars().next() {
-            Some('{') => {
-                Ok(JSONValueType::Object)
-            }
-            Some('[') => {
-                Ok(JSONValueType::Array)
-            }
-            Some('"') => {
-                Ok(JSONValueType::String)
-            }
+            Some('{') => Ok(JSONValueType::Object),
+            Some('[') => Ok(JSONValueType::Array),
+            Some('"') => Ok(JSONValueType::String),
             Some('0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '-') => {
                 Ok(JSONValueType::Number)
             }
-            Some('t' | 'f') => {
-                Ok(JSONValueType::Bool)
-            }
-            Some('n') => {
-                Ok(JSONValueType::Null)
-            }
+            Some('t' | 'f') => Ok(JSONValueType::Bool),
+            Some('n') => Ok(JSONValueType::Null),
             _ => {
                 return Err(JSONParsingError::UnexpectedToken);
             }
@@ -524,20 +514,38 @@ mod test {
     #[test]
     fn peeking_value_type() {
         assert_eq!(JSONValue::peek_value_type("123"), Ok(JSONValueType::Number));
-        assert_eq!(JSONValue::peek_value_type("12.3"), Ok(JSONValueType::Number));
-        assert_eq!(JSONValue::peek_value_type("12.3e10"), Ok(JSONValueType::Number));
+        assert_eq!(
+            JSONValue::peek_value_type("12.3"),
+            Ok(JSONValueType::Number)
+        );
+        assert_eq!(
+            JSONValue::peek_value_type("12.3e10"),
+            Ok(JSONValueType::Number)
+        );
         assert_eq!(JSONValue::peek_value_type("-3"), Ok(JSONValueType::Number));
-        assert_eq!(JSONValue::peek_value_type("-3.5"), Ok(JSONValueType::Number));
+        assert_eq!(
+            JSONValue::peek_value_type("-3.5"),
+            Ok(JSONValueType::Number)
+        );
         assert_eq!(JSONValue::peek_value_type("null"), Ok(JSONValueType::Null));
         assert_eq!(JSONValue::peek_value_type("true"), Ok(JSONValueType::Bool));
         assert_eq!(JSONValue::peek_value_type("false"), Ok(JSONValueType::Bool));
         assert_eq!(JSONValue::peek_value_type("[]"), Ok(JSONValueType::Array));
         assert_eq!(JSONValue::peek_value_type("[12]"), Ok(JSONValueType::Array));
-        assert_eq!(JSONValue::peek_value_type("[1,2]"), Ok(JSONValueType::Array));
+        assert_eq!(
+            JSONValue::peek_value_type("[1,2]"),
+            Ok(JSONValueType::Array)
+        );
         assert_eq!(JSONValue::peek_value_type("[[]]"), Ok(JSONValueType::Array));
-        assert_eq!(JSONValue::peek_value_type("\"foo\""), Ok(JSONValueType::String));
+        assert_eq!(
+            JSONValue::peek_value_type("\"foo\""),
+            Ok(JSONValueType::String)
+        );
         assert_eq!(JSONValue::peek_value_type("{}"), Ok(JSONValueType::Object));
-        assert_eq!(JSONValue::peek_value_type("{\"a\":2}"), Ok(JSONValueType::Object));
+        assert_eq!(
+            JSONValue::peek_value_type("{\"a\":2}"),
+            Ok(JSONValueType::Object)
+        );
         assert!(JSONValue::peek_value_type("<").is_err());
         assert!(JSONValue::peek_value_type("bar").is_err());
     }
