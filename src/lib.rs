@@ -17,6 +17,59 @@
 #![doc = include_str!("../README.md")]
 #![no_std]
 
+/// Errors while parsing JSON
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum JSONParsingError {
+    /// Attempt to parse an object that is not an array as an array
+    CannotParseArray,
+    /// Attempt to parse an object that is not a float as a float
+    CannotParseFloat,
+    /// Attempt to parse an object that is not an integer as an integer
+    CannotParseInteger,
+    /// Attempt to parse an object that is not an object as an object
+    CannotParseObject,
+    /// Attempt to parse an object that is not a string as an string
+    CannotParseString,
+    /// The key is not present in the object
+    KeyNotFound,
+    /// There was an unexpected token in the input stream
+    UnexpectedToken,
+    /// The input stream terminated while scanning a type
+    EndOfStream,
+}
+
+impl core::fmt::Debug for JSONParsingError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            &Self::KeyNotFound => {
+                write!(f, "Key not found")
+            },
+            &Self::EndOfStream => {
+                write!(f, "Stream ended while parsing JSON")
+            },
+            &Self::UnexpectedToken => {
+                write!(f, "Unexpected token")
+            },
+            &Self::CannotParseArray => {
+                write!(f, "Error parsing array")
+            },
+            &Self::CannotParseFloat => {
+                write!(f, "Error parsing float")
+            },
+            &Self::CannotParseInteger => {
+                write!(f, "Error parsing integer")
+            },
+            &Self::CannotParseString => {
+                write!(f, "Error parsing string")
+            },
+            &Self::CannotParseObject => {
+                write!(f, "Error parsing object")
+            }
+        }
+    }
+}
+
+
 /// Denotes the different types of values JSON objects can have
 ///
 /// ### Numbers
@@ -53,7 +106,7 @@ fn trim_start(value: &str) -> (&str, usize) {
 }
 
 impl<'a> JSONValue<'a> {
-    pub fn parse(contents: &'a str) -> Result<JSONValue, &'static str> {
+    pub fn parse(contents: &'a str) -> Result<JSONValue, JSONParsingError> {
         let (contents, _) = trim_start(contents);
         let value_type = JSONValue::peek_value_type(contents)?;
         Ok(JSONValue {
@@ -65,7 +118,7 @@ impl<'a> JSONValue<'a> {
     ///
     /// This function will never give the _wrong_ type, though it may return a type even if the
     /// input string is not well formed.
-    fn peek_value_type(contents: &'a str) -> Result<JSONValueType, &'static str> {
+    fn peek_value_type(contents: &'a str) -> Result<JSONValueType, JSONParsingError> {
         // The contents must be trimmed
         match contents.chars().next() {
             Some('{') => {
@@ -87,7 +140,7 @@ impl<'a> JSONValue<'a> {
                 Ok(JSONValueType::Null)
             }
             _ => {
-                return Err("Could not interpret start of token");
+                return Err(JSONParsingError::UnexpectedToken);
             }
         }
     }
@@ -106,18 +159,18 @@ impl<'a> JSONValue<'a> {
     /// let value = JSONValue::parse("[,,{\"").unwrap(); // This will not error
     /// assert!(value.verify().is_err());
     /// ```
-    pub fn verify(&self) -> Result<(), &'static str> {
+    pub fn verify(&self) -> Result<(), JSONParsingError> {
         JSONValue::parse_with_len(self.contents)?;
         Ok(())
     }
 
-    pub fn parse_and_verify(contents: &'a str) -> Result<JSONValue, &'static str> {
+    pub fn parse_and_verify(contents: &'a str) -> Result<JSONValue, JSONParsingError> {
         let value = JSONValue::parse(contents)?;
         value.verify()?;
         Ok(value)
     }
 
-    fn parse_with_len(contents: &'a str) -> Result<(JSONValue, usize), &'static str> {
+    fn parse_with_len(contents: &'a str) -> Result<(JSONValue, usize), JSONParsingError> {
         let (contents, whitespace_trimmed) = trim_start(contents);
         let (value_type, value_len) = match contents.chars().next() {
             Some('{') => {
@@ -130,18 +183,18 @@ impl<'a> JSONValue<'a> {
                     }
                     let (item, item_len) = JSONValue::parse_with_len(contents)?;
                     if item.value_type != JSONValueType::String {
-                        return Err("Cannot parse object key");
+                        return Err(JSONParsingError::CannotParseString);
                     }
                     let (new_contents, whitespace) = trim_start(&contents[item_len..]);
                     contents = new_contents;
                     value_len += item_len + whitespace;
                     if contents.is_empty() {
-                        return Err("End of stream while parsing object");
+                        return Err(JSONParsingError::EndOfStream);
                     } else if contents.starts_with(':') {
                         value_len += 1;
                         contents = &contents[1..];
                     } else {
-                        return Err("Illegal token while parsing object");
+                        return Err(JSONParsingError::UnexpectedToken);
                     }
 
                     let (_, item_len) = JSONValue::parse_with_len(contents)?;
@@ -149,12 +202,12 @@ impl<'a> JSONValue<'a> {
                     contents = new_contents;
                     value_len += item_len + whitespace;
                     if contents.is_empty() {
-                        return Err("End of stream while parsing object");
+                        return Err(JSONParsingError::EndOfStream);
                     } else if contents.starts_with(',') {
                         value_len += 1;
                         contents = &contents[1..];
                     } else if !contents.starts_with('}') {
-                        return Err("Illegal token while parsing object");
+                        return Err(JSONParsingError::UnexpectedToken);
                     }
                 }
                 (JSONValueType::Object, value_len)
@@ -172,12 +225,12 @@ impl<'a> JSONValue<'a> {
                     contents = new_contents;
                     value_len += item_len + whitespace;
                     if contents.is_empty() {
-                        return Err("End of stream while parsing array");
+                        return Err(JSONParsingError::EndOfStream);
                     } else if contents.starts_with(',') {
                         value_len += 1;
                         contents = &contents[1..];
                     } else if !contents.starts_with(']') {
-                        return Err("Illegal token while parsing array");
+                        return Err(JSONParsingError::UnexpectedToken);
                     }
                 }
                 (JSONValueType::Array, value_len)
@@ -204,7 +257,7 @@ impl<'a> JSONValue<'a> {
                         '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '-' | 'e'
                         | 'E' | '.' => {
                             if chr == '-' && value_len > 0 {
-                                return Err("Unexpected '-' while parsing number");
+                                return Err(JSONParsingError::UnexpectedToken);
                             }
                             value_len += chr.len_utf8();
                         }
@@ -217,24 +270,24 @@ impl<'a> JSONValue<'a> {
             }
             Some('t') => {
                 if &contents[..4] != "true" {
-                    return Err("Unrecognised token");
+                    return Err(JSONParsingError::UnexpectedToken);
                 }
                 (JSONValueType::Bool, 4)
             }
             Some('f') => {
                 if &contents[..5] != "false" {
-                    return Err("Unrecognised token");
+                    return Err(JSONParsingError::UnexpectedToken);
                 }
                 (JSONValueType::Bool, 5)
             }
             Some('n') => {
                 if &contents[..4] != "null" {
-                    return Err("Unrecognised token");
+                    return Err(JSONParsingError::UnexpectedToken);
                 }
                 (JSONValueType::Null, 4)
             }
             _ => {
-                return Err("Could not interpret start of token");
+                return Err(JSONParsingError::UnexpectedToken);
             }
         };
         Ok((
@@ -256,12 +309,12 @@ impl<'a> JSONValue<'a> {
     /// let value = JSONValue::parse("-24").unwrap();
     /// assert_eq!(value.read_integer(), Ok(-24));
     /// ```
-    pub fn read_integer(&self) -> Result<isize, &'static str> {
+    pub fn read_integer(&self) -> Result<isize, JSONParsingError> {
         if self.value_type != JSONValueType::Number {
-            return Err("Cannot parse value as integer");
+            return Err(JSONParsingError::CannotParseInteger);
         }
         let contents = self.contents.trim_end();
-        str::parse(contents).or_else(|_| Err("Cannot parse as integer"))
+        str::parse(contents).or_else(|_| Err(JSONParsingError::CannotParseInteger))
     }
 
     /// Reads the [`JSONValue`] as a float
@@ -274,12 +327,12 @@ impl<'a> JSONValue<'a> {
     /// let value = JSONValue::parse("2.4").unwrap();
     /// assert_eq!(value.read_float(), Ok(2.4));
     /// ```
-    pub fn read_float(&self) -> Result<f32, &'static str> {
+    pub fn read_float(&self) -> Result<f32, JSONParsingError> {
         if self.value_type != JSONValueType::Number {
-            return Err("Cannot parse value as float");
+            return Err(JSONParsingError::CannotParseFloat);
         }
         let contents = self.contents.trim_end();
-        str::parse(contents).or_else(|_| Err("Cannot parse as float"))
+        str::parse(contents).or_else(|_| Err(JSONParsingError::CannotParseFloat))
     }
 
     /// Read the [`JSONValue`] as a string
@@ -292,9 +345,9 @@ impl<'a> JSONValue<'a> {
     /// ```
     // TODO(robert): String can be escaped and all manner of trickery.  We need to deal with that
     // by returning some kind of iterator over characters here.
-    pub fn read_string(&self) -> Result<&str, &'static str> {
+    pub fn read_string(&self) -> Result<&str, JSONParsingError> {
         if self.value_type != JSONValueType::String {
-            return Err("Cannot parse value as string");
+            return Err(JSONParsingError::CannotParseString);
         }
         Ok(&self.contents[1..self.contents.len() - 1])
     }
@@ -302,9 +355,9 @@ impl<'a> JSONValue<'a> {
     /// Constructs an iterator over this array value
     ///
     /// If the value is not an [`JSONValueType::Array`], returns an error.
-    pub fn iter_array(&self) -> Result<JSONArrayIterator<'a>, &'static str> {
+    pub fn iter_array(&self) -> Result<JSONArrayIterator<'a>, JSONParsingError> {
         if self.value_type != JSONValueType::Array {
-            return Err("Cannot parse value as an array");
+            return Err(JSONParsingError::CannotParseArray);
         }
         Ok(JSONArrayIterator {
             contents: &self.contents[1..],
@@ -312,9 +365,9 @@ impl<'a> JSONValue<'a> {
     }
 
     // TODO(robert): This should be an iterator of `JSONValue`s
-    pub fn get_key_value(&self, key: &str) -> Result<JSONValue, &'static str> {
+    pub fn get_key_value(&self, key: &str) -> Result<JSONValue, JSONParsingError> {
         if self.value_type != JSONValueType::Object {
-            return Err("Cannot parse value as an object");
+            return Err(JSONParsingError::CannotParseObject);
         }
         let mut contents = &self.contents[1..];
         while !contents.is_empty() {
@@ -327,7 +380,7 @@ impl<'a> JSONValue<'a> {
                 contents = &contents[value_len..].trim_start()[1..];
             }
         }
-        Err("Key not found")
+        Err(JSONParsingError::KeyNotFound)
     }
 }
 

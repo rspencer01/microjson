@@ -22,8 +22,8 @@ microjson = "0.1"
 
 You can read strings and integers easily:
 ```rust
-# use microjson::JSONValue;
-# fn main() -> Result<(), &'static str> {
+# use microjson::{JSONValue, JSONParsingError};
+# fn main() -> Result<(), JSONParsingError> {
 let integer = JSONValue::parse("42")?;
 
 let value : isize = integer.read_integer()?;
@@ -37,8 +37,8 @@ let value : &str = string.read_string()?;
 
 You can read arrays like this:
 ```rust
-# use microjson::JSONValue;
-# fn main() -> Result<(), &'static str> {
+# use microjson::{JSONValue, JSONParsingError};
+# fn main() -> Result<(), JSONParsingError> {
 let input = r#" [0, 1, 2, 3, 4, 5] "#;
 
 let array = JSONValue::parse(input)?;
@@ -53,8 +53,8 @@ for (n, item) in array.iter_array()?.enumerate() {
 
 And, of course, any combination of the above:
 ```rust
-# use microjson::JSONValue;
-# fn main() -> Result<(), &'static str> {
+# use microjson::{JSONValue, JSONParsingError};
+# fn main() -> Result<(), JSONParsingError> {
 let input = r#" { "arr": [3, "foo", 3.625, false] } "#;
 
 let object = JSONValue::parse(input)?;
@@ -69,8 +69,8 @@ assert_eq!(
 
 If you are unsure what kind of data you have, you can query the [`JSONValueType`].
 ```rust
-# use microjson::{JSONValue, JSONValueType};
-# fn main() -> Result<(), &'static str> {
+# use microjson::{JSONValue, JSONValueType, JSONParsingError};
+# fn main() -> Result<(), JSONParsingError> {
 let input = r#" 3.1415 "#;
 
 let object = JSONValue::parse(input)?;
