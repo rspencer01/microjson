@@ -364,11 +364,11 @@ impl<'a> JSONValue<'a> {
     /// Constructs an iterator over this string
     ///
     /// If the value is not an [`JSONValueType::String`], returns an error.
-    pub fn iter_string(&self) -> Result<JSONStringIterator<'a>, JSONParsingError> {
+    pub fn iter_string(&self) -> Result<EscapedStringIterator<'a>, JSONParsingError> {
         if self.value_type != JSONValueType::String {
-            return Err(JSONParsingError::CannotParseArray);
+            return Err(JSONParsingError::CannotParseString);
         }
-        Ok(JSONStringIterator {
+        Ok(EscapedStringIterator {
             contents: self.contents[1..].chars(),
             done: false,
         })
@@ -413,12 +413,15 @@ impl<'a> Iterator for JSONArrayIterator<'a> {
     }
 }
 
-pub struct JSONStringIterator<'a> {
+/// Iterator over a JSON-escaped string
+///
+/// Usually constructed with [`JSONValue::iter_string`].
+pub struct EscapedStringIterator<'a> {
     contents: core::str::Chars<'a>,
     done: bool,
 }
 
-impl<'a> Iterator for JSONStringIterator<'a> {
+impl<'a> Iterator for EscapedStringIterator<'a> {
     type Item = char;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -426,36 +429,38 @@ impl<'a> Iterator for JSONStringIterator<'a> {
             None
         } else {
             let chr = self.contents.next();
-            if chr == Some('\\') {
-                let chr = self.contents.next();
-                match chr {
-                    Some('"' | '\\' | '/') => chr,
-                    Some('b') => Some('\x08'),
-                    Some('f') => Some('\x0c'),
-                    Some('n') => Some('\n'),
-                    Some('t') => Some('\t'),
-                    Some('r') => Some('\r'),
-                    Some('u') => {
-                        // TODO(robert) This is liable to panic
-                        let code = [
-                            self.contents.next().unwrap().to_digit(16).unwrap(),
-                            self.contents.next().unwrap().to_digit(16).unwrap(),
-                            self.contents.next().unwrap().to_digit(16).unwrap(),
-                            self.contents.next().unwrap().to_digit(16).unwrap(),
-                        ];
-                        let code = (code[0] << 12) | (code[1] << 8) | (code[2] << 4) | code[3];
-                        char::from_u32(code)
+            match chr {
+                Some('\\') => {
+                    let chr = self.contents.next();
+                    match chr {
+                        Some('"' | '\\' | '/') => chr,
+                        Some('b') => Some('\x08'),
+                        Some('f') => Some('\x0c'),
+                        Some('n') => Some('\n'),
+                        Some('t') => Some('\t'),
+                        Some('r') => Some('\r'),
+                        Some('u') => {
+                            // TODO(robert) This is liable to panic
+                            let code = [
+                                self.contents.next().unwrap().to_digit(16).unwrap(),
+                                self.contents.next().unwrap().to_digit(16).unwrap(),
+                                self.contents.next().unwrap().to_digit(16).unwrap(),
+                                self.contents.next().unwrap().to_digit(16).unwrap(),
+                            ];
+                            let code = (code[0] << 12) | (code[1] << 8) | (code[2] << 4) | code[3];
+                            char::from_u32(code)
+                        }
+                        // NOTE This is actually an error, but Iterators don't let us return
+                        // errors, only end-of-streams
+                        Some(_) => None,
+                        None => None,
                     }
-                    // NOTE This is actually an error, but Iterators don't let us return
-                    // errors, only end-of-streams
-                    Some(_) => None,
-                    None => None,
                 }
-            } else if chr == Some('"') {
-                self.done = true;
-                None
-            } else {
-                chr
+                Some('"') => {
+                    self.done = true;
+                    None
+                }
+                _ => chr,
             }
         }
     }
