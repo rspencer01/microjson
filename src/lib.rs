@@ -295,12 +295,12 @@ impl<'a> JSONValue<'a> {
     ///
     /// ### Example
     /// ```
-    /// # use microjson::JSONValue;
+    /// # use microjson::{JSONValue, JSONParsingError};
     /// let value = JSONValue::parse("-24").unwrap();
     /// assert_eq!(value.read_integer(), Ok(-24));
     ///
     /// let value = JSONValue::parse("5pi").unwrap();
-    /// assert_eq!(value.read_float(), Err(JSONParsingError::CannotParseInteger));
+    /// assert_eq!(value.read_integer(), Err(JSONParsingError::CannotParseInteger));
     /// ```
     pub fn read_integer(&self) -> Result<isize, JSONParsingError> {
         if self.value_type != JSONValueType::Number {
@@ -316,7 +316,7 @@ impl<'a> JSONValue<'a> {
     ///
     /// ### Example
     /// ```
-    /// # use microjson::JSONValue;
+    /// # use microjson::{JSONValue, JSONParsingError};
     /// let value = JSONValue::parse("2.4").unwrap();
     /// assert_eq!(value.read_float(), Ok(2.4));
     ///
