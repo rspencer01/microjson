@@ -43,29 +43,29 @@ pub enum JSONParsingError {
 
 impl core::fmt::Debug for JSONParsingError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            &Self::KeyNotFound => {
+        match *self {
+            Self::KeyNotFound => {
                 write!(f, "Key not found")
             }
-            &Self::EndOfStream => {
+            Self::EndOfStream => {
                 write!(f, "Stream ended while parsing JSON")
             }
-            &Self::UnexpectedToken => {
+            Self::UnexpectedToken => {
                 write!(f, "Unexpected token")
             }
-            &Self::CannotParseArray => {
+            Self::CannotParseArray => {
                 write!(f, "Error parsing array")
             }
-            &Self::CannotParseFloat => {
+            Self::CannotParseFloat => {
                 write!(f, "Error parsing float")
             }
-            &Self::CannotParseInteger => {
+            Self::CannotParseInteger => {
                 write!(f, "Error parsing integer")
             }
-            &Self::CannotParseString => {
+            Self::CannotParseString => {
                 write!(f, "Error parsing string")
             }
-            &Self::CannotParseObject => {
+            Self::CannotParseObject => {
                 write!(f, "Error parsing object")
             }
         }
@@ -133,7 +133,7 @@ impl<'a> JSONValue<'a> {
             Some('t' | 'f') => Ok(JSONValueType::Bool),
             Some('n') => Ok(JSONValueType::Null),
             _ => {
-                return Err(JSONParsingError::UnexpectedToken);
+                Err(JSONParsingError::UnexpectedToken)
             }
         }
     }
@@ -307,7 +307,7 @@ impl<'a> JSONValue<'a> {
             return Err(JSONParsingError::CannotParseInteger);
         }
         let contents = self.contents.trim_end();
-        str::parse(contents).or_else(|_| Err(JSONParsingError::CannotParseInteger))
+        str::parse(contents).map_err(|_| JSONParsingError::CannotParseInteger)
     }
 
     /// Reads the [`JSONValue`] as a float
@@ -328,7 +328,7 @@ impl<'a> JSONValue<'a> {
             return Err(JSONParsingError::CannotParseFloat);
         }
         let contents = self.contents.trim_end();
-        str::parse(contents).or_else(|_| Err(JSONParsingError::CannotParseFloat))
+        str::parse(contents).map_err(|_| JSONParsingError::CannotParseFloat)
     }
 
     /// Read the [`JSONValue`] as a string
