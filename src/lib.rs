@@ -18,6 +18,9 @@
 #![no_std]
 
 /// Errors while parsing JSON
+///
+/// Due to the "scan once" philosophy of this crate, errors can either be returned when first
+/// constructing a [`JSONValue`] or when trying to read it using one of the accessors.
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum JSONParsingError {
     /// Attempt to parse an object that is not an array as an array
@@ -298,6 +301,9 @@ impl<'a> JSONValue<'a> {
     /// # use microjson::JSONValue;
     /// let value = JSONValue::parse("-24").unwrap();
     /// assert_eq!(value.read_integer(), Ok(-24));
+    ///
+    /// let value = JSONValue::parse("5pi").unwrap();
+    /// assert_eq!(value.read_float(), Err(JSONParsingError::CannotParseInteger));
     /// ```
     pub fn read_integer(&self) -> Result<isize, JSONParsingError> {
         if self.value_type != JSONValueType::Number {
@@ -316,6 +322,9 @@ impl<'a> JSONValue<'a> {
     /// # use microjson::JSONValue;
     /// let value = JSONValue::parse("2.4").unwrap();
     /// assert_eq!(value.read_float(), Ok(2.4));
+    ///
+    /// let value = JSONValue::parse("5pi").unwrap();
+    /// assert_eq!(value.read_float(), Err(JSONParsingError::CannotParseFloat));
     /// ```
     pub fn read_float(&self) -> Result<f32, JSONParsingError> {
         if self.value_type != JSONValueType::Number {
@@ -414,9 +423,11 @@ mod test {
         let (value, value_len) = JSONValue::parse_with_len("3.141592").unwrap();
         assert_eq!(value.value_type, JSONValueType::Number);
         assert_eq!(value_len, "3.141592".len());
-        assert!(value.read_integer().is_err());
-        assert!(value.read_string().is_err());
+        assert_eq!(value.read_integer(), Err(JSONParsingError::CannotParseInteger));
+        assert_eq!(value.read_string(), Err(JSONParsingError::CannotParseString));
         assert!((value.read_float().unwrap() - 3.141592).abs() < 0.0001);
+
+        assert_eq!(JSONValue::parse("-3.43w").unwrap().read_float(), Err(JSONParsingError::CannotParseFloat));
     }
 
     #[test]
