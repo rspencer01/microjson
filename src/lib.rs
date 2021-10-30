@@ -483,11 +483,20 @@ mod test {
         let (value, value_len) = JSONValue::parse_with_len("3.141592").unwrap();
         assert_eq!(value.value_type, JSONValueType::Number);
         assert_eq!(value_len, "3.141592".len());
-        assert_eq!(value.read_integer(), Err(JSONParsingError::CannotParseInteger));
-        assert_eq!(value.read_string(), Err(JSONParsingError::CannotParseString));
+        assert_eq!(
+            value.read_integer(),
+            Err(JSONParsingError::CannotParseInteger)
+        );
+        assert_eq!(
+            value.read_string(),
+            Err(JSONParsingError::CannotParseString)
+        );
         assert!((value.read_float().unwrap() - 3.141592).abs() < 0.0001);
 
-        assert_eq!(JSONValue::parse("-3.43w").unwrap().read_float(), Err(JSONParsingError::CannotParseFloat));
+        assert_eq!(
+            JSONValue::parse("-3.43w").unwrap().read_float(),
+            Err(JSONParsingError::CannotParseFloat)
+        );
     }
 
     #[test]
