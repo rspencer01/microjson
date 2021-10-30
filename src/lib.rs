@@ -249,9 +249,6 @@ impl<'a> JSONValue<'a> {
                     match chr {
                         '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '-' | 'e'
                         | 'E' | '.' => {
-                            if chr == '-' && value_len > 0 {
-                                return Err(JSONParsingError::UnexpectedToken);
-                            }
                             value_len += chr.len_utf8();
                         }
                         _ => {
