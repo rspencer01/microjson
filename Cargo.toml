@@ -1,6 +1,6 @@
 [package]
 name = "microjson"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2018"
 license = "GPL-3.0-only"
 repository = "https://github.com/rspencer01/microjson"
