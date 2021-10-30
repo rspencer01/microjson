@@ -361,6 +361,19 @@ impl<'a> JSONValue<'a> {
         })
     }
 
+    /// Constructs an iterator over this string
+    ///
+    /// If the value is not an [`JSONValueType::String`], returns an error.
+    pub fn iter_string(&self) -> Result<JSONStringIterator<'a>, JSONParsingError> {
+        if self.value_type != JSONValueType::String {
+            return Err(JSONParsingError::CannotParseArray);
+        }
+        Ok(JSONStringIterator {
+            contents: self.contents[1..].chars(),
+            done: false,
+        })
+    }
+
     // TODO(robert): This should be an iterator of `JSONValue`s
     pub fn get_key_value(&self, key: &str) -> Result<JSONValue, JSONParsingError> {
         if self.value_type != JSONValueType::Object {
@@ -400,9 +413,58 @@ impl<'a> Iterator for JSONArrayIterator<'a> {
     }
 }
 
+pub struct JSONStringIterator<'a> {
+    contents: core::str::Chars<'a>,
+    done: bool,
+}
+
+impl<'a> Iterator for JSONStringIterator<'a> {
+    type Item = char;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.done {
+            None
+        } else {
+            let chr = self.contents.next();
+            if chr == Some('\\') {
+                let chr = self.contents.next();
+                match chr {
+                    Some('"' | '\\' | '/') => chr,
+                    Some('b') => Some('\x08'),
+                    Some('f') => Some('\x0c'),
+                    Some('n') => Some('\n'),
+                    Some('t') => Some('\t'),
+                    Some('r') => Some('\r'),
+                    Some('u') => {
+                        // TODO(robert) This is liable to panic
+                        let code = [
+                            self.contents.next().unwrap().to_digit(16).unwrap(),
+                            self.contents.next().unwrap().to_digit(16).unwrap(),
+                            self.contents.next().unwrap().to_digit(16).unwrap(),
+                            self.contents.next().unwrap().to_digit(16).unwrap(),
+                        ];
+                        let code = (code[0] << 12) | (code[1] << 8) | (code[2] << 4) | code[3];
+                        char::from_u32(code)
+                    }
+                    // NOTE This is actually an error, but Iterators don't let us return
+                    // errors, only end-of-streams
+                    Some(_) => None,
+                    None => None,
+                }
+            } else if chr == Some('"') {
+                self.done = true;
+                None
+            } else {
+                chr
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
+    extern crate std;
 
     #[test]
     fn integer() {
@@ -567,5 +629,35 @@ mod test {
         assert!(JSONValue::parse_and_verify(" 123 ").is_ok());
         assert!(JSONValue::parse_and_verify("[123]").is_ok());
         assert!(JSONValue::parse_and_verify("\"foo\"").is_ok());
+    }
+
+    #[test]
+    fn string_iterator() {
+        let value = JSONValue::parse("\"I have a dream\"").unwrap();
+        assert_eq!(
+            value
+                .iter_string()
+                .unwrap()
+                .collect::<std::string::String>(),
+            "I have a dream"
+        );
+
+        let value = JSONValue::parse("\"\\\"I have a dream\\\"\"").unwrap();
+        assert_eq!(
+            value
+                .iter_string()
+                .unwrap()
+                .collect::<std::string::String>(),
+            "\"I have a dream\""
+        );
+
+        let value = JSONValue::parse(r#" "\"I\n\thave\b\fa\\dream\/\"\u00a3" "#).unwrap();
+        assert_eq!(
+            value
+                .iter_string()
+                .unwrap()
+                .collect::<std::string::String>(),
+            "\"I\n\thave\x08\x0ca\\dream/\"£"
+        );
     }
 }
