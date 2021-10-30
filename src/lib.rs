@@ -342,10 +342,11 @@ impl<'a> JSONValue<'a> {
     // TODO(robert): String can be escaped and all manner of trickery.  We need to deal with that
     // by returning some kind of iterator over characters here.
     pub fn read_string(&self) -> Result<&str, JSONParsingError> {
+        let (_, length) = JSONValue::parse_with_len(self.contents)?;
         if self.value_type != JSONValueType::String {
             return Err(JSONParsingError::CannotParseString);
         }
-        Ok(&self.contents[1..self.contents.len() - 1])
+        Ok(&self.contents[1..length - 1])
     }
 
     /// Constructs an iterator over this array value
@@ -433,6 +434,9 @@ mod test {
         assert_eq!(value.value_type, JSONValueType::String);
         assert_eq!(value_len, "\"hello world\"".len());
         assert!(value.read_integer().is_err());
+        assert_eq!(value.read_string(), Ok("hello world"));
+
+        let value = JSONValue::parse("\"hello world\"   ").unwrap();
         assert_eq!(value.read_string(), Ok("hello world"));
     }
 
