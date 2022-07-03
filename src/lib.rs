@@ -132,9 +132,7 @@ impl<'a> JSONValue<'a> {
             }
             Some('t' | 'f') => Ok(JSONValueType::Bool),
             Some('n') => Ok(JSONValueType::Null),
-            _ => {
-                Err(JSONParsingError::UnexpectedToken)
-            }
+            _ => Err(JSONParsingError::UnexpectedToken),
         }
     }
 
@@ -555,8 +553,7 @@ mod test {
     fn object() {
         let input = "{
         \"id\": 0,
-        \"name\": \"Ginger Fuller\"
-      }";
+        \"name\": \"Ginger Fuller\"}";
         let (value, value_len) = JSONValue::parse_with_len(input).unwrap();
         assert_eq!(value.value_type, JSONValueType::Object);
         assert_eq!(value_len, input.len());
