@@ -440,12 +440,14 @@ impl<'a> Iterator for EscapedStringIterator<'a> {
                         Some('t') => Some('\t'),
                         Some('r') => Some('\r'),
                         Some('u') => {
-                            // TODO(robert) This is liable to panic
+                            // NOTE If we run out of string at this point this is actually
+                            // an error, but Iterators don't let us return errors, only
+                            // end-of-streams
                             let code = [
-                                self.contents.next().unwrap().to_digit(16).unwrap(),
-                                self.contents.next().unwrap().to_digit(16).unwrap(),
-                                self.contents.next().unwrap().to_digit(16).unwrap(),
-                                self.contents.next().unwrap().to_digit(16).unwrap(),
+                                self.contents.next().unwrap_or('0').to_digit(16).unwrap(),
+                                self.contents.next().unwrap_or('0').to_digit(16).unwrap(),
+                                self.contents.next().unwrap_or('0').to_digit(16).unwrap(),
+                                self.contents.next().unwrap_or('0').to_digit(16).unwrap(),
                             ];
                             let code = (code[0] << 12) | (code[1] << 8) | (code[2] << 4) | code[3];
                             char::from_u32(code)
@@ -456,7 +458,9 @@ impl<'a> Iterator for EscapedStringIterator<'a> {
                         None => None,
                     }
                 }
-                Some('"') => {
+                // NOTE If this is `None`, it is actually an error, but Iterators don't let us return
+                // errors, only end-of-streams
+                Some('"') | None => {
                     self.done = true;
                     None
                 }
