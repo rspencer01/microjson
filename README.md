@@ -113,5 +113,5 @@ Features
   * [x] Parse floats (using [built in parser](https://doc.rust-lang.org/1.56.0/std/primitive.f32.html#method.from_str))
   * [x] Iterators over arrays
   * [x] Object key lookup
-  * [ ] Iterators over objects
+  * [x] Iterators over objects
   * [x] Verify JSON

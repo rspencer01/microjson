@@ -372,27 +372,71 @@ impl<'a> JSONValue<'a> {
         })
     }
 
-    // TODO(robert): This should be an iterator of `JSONValue`s
-    pub fn get_key_value(&self, key: &str) -> Result<JSONValue, JSONParsingError> {
+    /// Constructs an iterator over this object
+    ///
+    /// If the value is not an [`JSONValueType::Object`], returns an error.
+    pub fn iter_object(&self) -> Result<JSONObjectIterator<'a>, JSONParsingError> {
         if self.value_type != JSONValueType::Object {
             return Err(JSONParsingError::CannotParseObject);
         }
-        let mut contents = &self.contents[1..];
-        while !contents.is_empty() {
-            let (this_key, key_len) = JSONValue::parse_with_len(contents).unwrap();
-            contents = &contents[key_len..].trim_start()[1..];
-            if this_key.read_string().unwrap() == key {
-                return JSONValue::parse_with_len(contents).map(|x| x.0);
-            } else {
-                let (_, value_len) = JSONValue::parse_with_len(contents).unwrap();
-                contents = &contents[value_len..].trim_start()[1..];
+        Ok(JSONObjectIterator {
+            contents: &self.contents[1..],
+        })
+    }
+
+    /// Searches this object for a key and returns it's value
+    ///
+    /// Like the function [`Iterator::nth`], this searches linearly through all the keys in the
+    /// object to find the desired one. If parsing the entire object in an arbitrary order, then,
+    /// prefer using [`JSONValue::iter_object`].
+    ///
+    /// Will return `Err(JSONParsingError::KeyNotFound)` if the key is not present.
+    pub fn get_key_value(&self, key: &str) -> Result<JSONValue, JSONParsingError> {
+        for (v_key, value) in self.iter_object()? {
+            if key == v_key {
+                return Ok(value);
             }
         }
         Err(JSONParsingError::KeyNotFound)
     }
 }
 
+/// An iterator through a JSON object
+///
+/// Usually constructed with [`JSONValue::iter_object`].
+///
+/// The iterator items are `(key, value)`, but the key is not escaped
+pub struct JSONObjectIterator<'a> {
+    contents: &'a str,
+}
+
+impl<'a> Iterator for JSONObjectIterator<'a> {
+    type Item = (&'a str, JSONValue<'a>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.contents = self.contents.trim_start();
+        if self.contents.is_empty() {
+            None
+        } else {
+            assert_eq!(self.contents.chars().next(), Some('\"'));
+            // We expect this to be a string value for the key
+            let (_, key_len) = JSONValue::parse_with_len(self.contents).unwrap();
+            let this_key = &self.contents[1..key_len - 1];
+            self.contents = &self.contents[key_len..].trim_start()[1..];
+
+            let (this_value, value_len) = JSONValue::parse_with_len(self.contents).unwrap();
+            self.contents = &self.contents[value_len..].trim_start();
+            if !self.contents.is_empty() {
+                self.contents = &self.contents[1..];
+            }
+            Some((this_key, this_value))
+        }
+    }
+}
+
 /// An iterator through a JSON array value
+///
+/// Usually constructed with [`JSONValue::iter_array`].
 pub struct JSONArrayIterator<'a> {
     contents: &'a str,
 }
@@ -675,4 +719,14 @@ mod test {
             "\"I\n\thave\x08\x0ca\\dream/\"£"
         );
     }
+
+    #[test]
+    fn object_iterator() {
+        let json_value = JSONValue::parse("{\"foo\" : [], \"bar\":{\"baz\": 2}}").unwrap();
+        let keys = ["foo", "bar"];
+        for ((key, _), expected_key) in json_value.iter_object().unwrap().zip(&keys) {
+            assert_eq!(key, *expected_key);
+        }
+    }
+
 }
