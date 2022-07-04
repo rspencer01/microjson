@@ -331,14 +331,15 @@ impl<'a> JSONValue<'a> {
 
     /// Read the [`JSONValue`] as a string
     ///
+    /// This returns an unescaped string (actually a slice into the underlying bytes). If you need
+    /// escape sequences to be handled, use [`JSONValue::iter_string`].
+    ///
     /// ## Example
     /// ```
     /// # use microjson::JSONValue;
     /// let value = JSONValue::parse("\"this is a string\"").unwrap();
     /// assert_eq!(value.read_string(), Ok("this is a string"));
     /// ```
-    // TODO(robert): String can be escaped and all manner of trickery.  We need to deal with that
-    // by returning some kind of iterator over characters here.
     pub fn read_string(&self) -> Result<&str, JSONParsingError> {
         let (_, length) = JSONValue::parse_with_len(self.contents)?;
         if self.value_type != JSONValueType::String {
