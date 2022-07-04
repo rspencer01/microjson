@@ -363,6 +363,8 @@ impl<'a> JSONValue<'a> {
     /// Constructs an iterator over this string
     ///
     /// If the value is not an [`JSONValueType::String`], returns an error.
+    ///
+    /// The iterator returns [`char`]s and handles escape sequences.
     pub fn iter_string(&self) -> Result<EscapedStringIterator<'a>, JSONParsingError> {
         if self.value_type != JSONValueType::String {
             return Err(JSONParsingError::CannotParseString);
@@ -393,12 +395,10 @@ impl<'a> JSONValue<'a> {
     ///
     /// Will return `Err(JSONParsingError::KeyNotFound)` if the key is not present.
     pub fn get_key_value(&self, key: &str) -> Result<JSONValue, JSONParsingError> {
-        for (v_key, value) in self.iter_object()? {
-            if key == v_key {
-                return Ok(value);
-            }
-        }
-        Err(JSONParsingError::KeyNotFound)
+        self.iter_object()?
+            .find(|(k, _)| k == &key)
+            .map(|(_, v)| v)
+            .ok_or(JSONParsingError::KeyNotFound)
     }
 }
 
@@ -610,6 +610,10 @@ mod test {
             value.get_key_value("name").unwrap().read_string(),
             Ok("Ginger Fuller")
         );
+        assert_eq!(
+            value.get_key_value("surname").err(),
+            Some(JSONParsingError::KeyNotFound)
+        );
 
         assert!(JSONValue::parse("{\"foo\":[{}]}").is_ok());
         assert!(JSONValue::parse("[{\"foo\":{}}]").is_ok());
@@ -729,5 +733,4 @@ mod test {
             assert_eq!(key, *expected_key);
         }
     }
-
 }
