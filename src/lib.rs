@@ -405,8 +405,8 @@ impl<'a> JSONValue<'a> {
     /// Will return `Err(JSONParsingError::KeyNotFound)` if the key is not present.
     pub fn get_key_value(&self, key: &str) -> Result<JSONValue, JSONParsingError> {
         self.iter_object()?
-            .find(|(k, _)| k == &key)
-            .map(|(_, v)| v)
+            .find(|item| matches!(item, Ok((k, _)) if k == &key))
+            .map(|item| item.unwrap().1)
             .ok_or(JSONParsingError::KeyNotFound)
     }
 }
@@ -415,31 +415,48 @@ impl<'a> JSONValue<'a> {
 ///
 /// Usually constructed with [`JSONValue::iter_object`].
 ///
-/// The iterator items are `(key, value)`, but the key is not escaped
+/// The iterator items are `Result<(key, value), JSONParsingError>`, but the key is not escaped
 pub struct JSONObjectIterator<'a> {
     contents: &'a str,
 }
 
 impl<'a> Iterator for JSONObjectIterator<'a> {
-    type Item = (&'a str, JSONValue<'a>);
+    type Item = Result<(&'a str, JSONValue<'a>), JSONParsingError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.contents = self.contents.trim_start();
         if self.contents.is_empty() {
             None
         } else {
-            assert_eq!(self.contents.chars().next(), Some('\"'));
-            // We expect this to be a string value for the key
-            let (_, key_len) = JSONValue::parse_with_len(self.contents).unwrap();
-            let this_key = &self.contents[1..key_len - 1];
-            self.contents = &self.contents[key_len..].trim_start()[1..];
-
-            let (this_value, value_len) = JSONValue::parse_with_len(self.contents).unwrap();
-            self.contents = &self.contents[value_len..].trim_start();
-            if !self.contents.is_empty() {
-                self.contents = &self.contents[1..];
+            if !self.contents.starts_with('\"') {
+                self.contents = &self.contents[..0];
+                return None;
             }
-            Some((this_key, this_value))
+            // We expect this to be a string value for the key
+            match JSONValue::parse_with_len(self.contents) {
+                Ok((_, key_len)) => {
+                    let this_key = &self.contents[1..key_len - 1];
+                    self.contents = &self.contents[key_len..].trim_start()[1..];
+
+                    match JSONValue::parse_with_len(self.contents) {
+                        Ok((this_value, value_len)) => {
+                            self.contents = &self.contents[value_len..].trim_start();
+                            if !self.contents.is_empty() {
+                                self.contents = &self.contents[1..];
+                            }
+                            Some(Ok((this_key, this_value)))
+                        }
+                        Err(e) => {
+                            self.contents = &self.contents[..0];
+                            Some(Err(e))
+                        }
+                    }
+                }
+                Err(e) => {
+                    self.contents = &self.contents[..0];
+                    Some(Err(e))
+                }
+            }
         }
     }
 }
@@ -755,8 +772,8 @@ mod test {
     fn object_iterator() {
         let json_value = JSONValue::parse("{\"foo\" : [], \"bar\":{\"baz\": 2}}").unwrap();
         let keys = ["foo", "bar"];
-        for ((key, _), expected_key) in json_value.iter_object().unwrap().zip(&keys) {
-            assert_eq!(key, *expected_key);
+        for (item, expected_key) in json_value.iter_object().unwrap().zip(&keys) {
+            assert_eq!(item.unwrap().0, *expected_key);
         }
     }
 }
