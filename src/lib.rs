@@ -364,7 +364,16 @@ impl<'a> JSONValue<'a> {
     ///
     /// If the value is not an [`JSONValueType::String`], returns an error.
     ///
-    /// The iterator returns [`char`]s and handles escape sequences.
+    /// The iterator returns [`Result<char, JSONParsingError>`]s and handles escape sequences.
+    /// You can convert this into a `Result<String, _>` using `collect`.
+    ///
+    /// ### Example
+    /// ```
+    /// # use microjson::JSONValue;
+    /// let value = JSONValue::parse(r#" "\u27FC This is a string with unicode \u27FB""#).unwrap();
+    /// let string : Result<String, _> = value.iter_string().unwrap().collect::<Result<String, _>>();
+    /// assert_eq!(string.unwrap(), "⟼ This is a string with unicode ⟻")
+    /// ```
     pub fn iter_string(&self) -> Result<EscapedStringIterator<'a>, JSONParsingError> {
         if self.value_type != JSONValueType::String {
             return Err(JSONParsingError::CannotParseString);
@@ -458,14 +467,14 @@ impl<'a> Iterator for JSONArrayIterator<'a> {
 
 /// Iterator over a JSON-escaped string
 ///
-/// Usually constructed with [`JSONValue::iter_string`].
+/// See [`JSONValue::iter_string`] for further documentation.
 pub struct EscapedStringIterator<'a> {
     contents: core::str::Chars<'a>,
     done: bool,
 }
 
 impl<'a> Iterator for EscapedStringIterator<'a> {
-    type Item = char;
+    type Item = Result<char, JSONParsingError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {
@@ -476,38 +485,50 @@ impl<'a> Iterator for EscapedStringIterator<'a> {
                 Some('\\') => {
                     let chr = self.contents.next();
                     match chr {
-                        Some('"' | '\\' | '/') => chr,
-                        Some('b') => Some('\x08'),
-                        Some('f') => Some('\x0c'),
-                        Some('n') => Some('\n'),
-                        Some('t') => Some('\t'),
-                        Some('r') => Some('\r'),
+                        Some('"' | '\\' | '/') => chr.map(Ok),
+                        Some('b') => Some(Ok('\x08')),
+                        Some('f') => Some(Ok('\x0c')),
+                        Some('n') => Some(Ok('\n')),
+                        Some('t') => Some(Ok('\t')),
+                        Some('r') => Some(Ok('\r')),
                         Some('u') => {
-                            // NOTE If we run out of string at this point this is actually
-                            // an error, but Iterators don't let us return errors, only
-                            // end-of-streams
-                            let code = [
-                                self.contents.next().unwrap_or('0').to_digit(16).unwrap(),
-                                self.contents.next().unwrap_or('0').to_digit(16).unwrap(),
-                                self.contents.next().unwrap_or('0').to_digit(16).unwrap(),
-                                self.contents.next().unwrap_or('0').to_digit(16).unwrap(),
-                            ];
-                            let code = (code[0] << 12) | (code[1] << 8) | (code[2] << 4) | code[3];
-                            char::from_u32(code)
+                            let mut get_digit = || {
+                                self.contents
+                                    .next()
+                                    .ok_or(JSONParsingError::CannotParseString)?
+                                    .to_digit(16)
+                                    .ok_or(JSONParsingError::CannotParseString)
+                            };
+                            let mut parse_unicode = || {
+                                let code = [get_digit()?, get_digit()?, get_digit()?, get_digit()?];
+                                let code =
+                                    (code[0] << 12) | (code[1] << 8) | (code[2] << 4) | code[3];
+                                char::from_u32(code).ok_or(JSONParsingError::CannotParseString)
+                            };
+                            match parse_unicode() {
+                                Ok(chr) => Some(Ok(chr)),
+                                Err(e) => {
+                                    self.done = true;
+                                    Some(Err(e))
+                                }
+                            }
                         }
-                        // NOTE This is actually an error, but Iterators don't let us return
-                        // errors, only end-of-streams
-                        Some(_) => None,
+                        Some(_) => {
+                            self.done = true;
+                            Some(Err(JSONParsingError::CannotParseString))
+                        }
                         None => None,
                     }
                 }
-                // NOTE If this is `None`, it is actually an error, but Iterators don't let us return
-                // errors, only end-of-streams
-                Some('"') | None => {
+                Some('"') => {
                     self.done = true;
                     None
                 }
-                _ => chr,
+                None => {
+                    self.done = true;
+                    Some(Err(JSONParsingError::CannotParseString))
+                }
+                _ => chr.map(Ok),
             }
         }
     }
@@ -697,32 +718,37 @@ mod test {
 
     #[test]
     fn string_iterator() {
-        let value = JSONValue::parse("\"I have a dream\"").unwrap();
-        assert_eq!(
-            value
+        let try_parse_string = |s| {
+            JSONValue::parse(s)
+                .unwrap()
                 .iter_string()
                 .unwrap()
-                .collect::<std::string::String>(),
-            "I have a dream"
-        );
+                .collect::<Result<std::string::String, _>>()
+        };
+        let value = try_parse_string("\"I have a dream\"").unwrap();
+        assert_eq!(value, "I have a dream");
 
-        let value = JSONValue::parse("\"\\\"I have a dream\\\"\"").unwrap();
-        assert_eq!(
-            value
-                .iter_string()
-                .unwrap()
-                .collect::<std::string::String>(),
-            "\"I have a dream\""
-        );
+        let value = try_parse_string("\"\\\"I have a dream\\\"\"").unwrap();
+        assert_eq!(value, "\"I have a dream\"");
 
-        let value = JSONValue::parse(r#" "\"I\n\thave\b\fa\\dream\/\"\u00a3" "#).unwrap();
-        assert_eq!(
-            value
-                .iter_string()
-                .unwrap()
-                .collect::<std::string::String>(),
-            "\"I\n\thave\x08\x0ca\\dream/\"£"
-        );
+        let value = try_parse_string(r#" "\"I\n\thave\b\fa\\dream\/\"\u00a3" "#).unwrap();
+        assert_eq!(value, "\"I\n\thave\x08\x0ca\\dream/\"£");
+
+        let value = try_parse_string(r#" " "#);
+        assert!(matches!(value, Err(JSONParsingError::CannotParseString)));
+        let value = try_parse_string(r#" "foo\" "#);
+        assert!(matches!(value, Err(JSONParsingError::CannotParseString)));
+        let value = try_parse_string(r#" "foo\" "#);
+        assert!(matches!(value, Err(JSONParsingError::CannotParseString)));
+        let value = try_parse_string(r#" "Odd escape: \?" "#);
+        assert!(matches!(value, Err(JSONParsingError::CannotParseString)));
+        let value = try_parse_string(r#" "\uwxyz" "#);
+        assert!(matches!(value, Err(JSONParsingError::CannotParseString)));
+        let value = try_parse_string(r#" "\uxyz" "#);
+        assert!(matches!(value, Err(JSONParsingError::CannotParseString)));
+        // This is not a single character codepoint under utf-16
+        let value = try_parse_string(r#" "\ud834" "#);
+        assert!(matches!(value, Err(JSONParsingError::CannotParseString)));
     }
 
     #[test]
