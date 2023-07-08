@@ -1,8 +1,8 @@
 Small JSON Parser in `no_std`
 =============================
 
-[![Build Status](https://app.travis-ci.com/rspencer01/microjson.svg?branch=master)](https://travis-ci.com/github/rspencer01/microjson)
 [![Latest Version](https://img.shields.io/crates/v/microjson.svg)](https://crates.io/crates/microjson)
+[![Test and lint](https://github.com/rspencer01/microjson/actions/workflows/test.yml/badge.svg)](https://github.com/rspencer01/microjson/actions/workflows/test.yml)
 [![Coverage Status](https://coveralls.io/repos/github/rspencer01/microjson/badge.svg?branch=master)](https://coveralls.io/github/rspencer01/microjson?branch=master)
 [![Docs](https://img.shields.io/docsrs/microjson)](https://docs.rs/microjson/latest/microjson/)
 
