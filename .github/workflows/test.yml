@@ -35,7 +35,18 @@ jobs:
         check_name: Test Results
         github_token: ${{ secrets.GITHUB_TOKEN }}
         files: results.xml
-    - uses: actions-rs/clippy-check@v1
+    - name: Clippy
+      uses: actions-rs/clippy-check@v1
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         args: --all-features
+    - name: Generate code coverage
+      uses: actions-rs/tarpaulin@v0.1
+      with:
+        version: '0.15.0'
+        args: '--out Lcov'
+    - name: upload to Coveralls
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path-to-lcov: './lcov.info'
