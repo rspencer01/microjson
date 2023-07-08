@@ -103,7 +103,7 @@ The error would only be reported when you attempted to iterate to the fourth ite
 If you need to know that the data is sound, use [`JSONValue::verify`].  Alternatively, you can parse and verify in one step.
 ```rust
 # use microjson::JSONValue;
-let value = JSONValue::parse_and_verify(r#" [1,2,3,5"foo"] "#);
+let value = JSONValue::load_and_verify(r#" [1,2,3,5"foo"] "#);
 ```
 
 Features
