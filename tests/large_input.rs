@@ -2,7 +2,7 @@ use microjson::*;
 
 #[test]
 fn large_input_read() {
-    let value = JSONValue::parse(JSON_PAYLOAD).unwrap();
+    let value = JSONValue::load(JSON_PAYLOAD);
     assert_eq!(
         value
             .iter_array()

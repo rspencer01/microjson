@@ -80,7 +80,7 @@ impl core::fmt::Debug for JSONParsingError {
 /// ### Example
 /// ```
 /// # use microjson::*;
-/// let json_value = JSONValue::parse("[1,2,3]").unwrap();
+/// let json_value = JSONValue::load("[1,2,3]");
 /// assert_eq!(json_value.value_type, JSONValueType::Array);
 /// ```
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -91,6 +91,7 @@ pub enum JSONValueType {
     Array,
     Bool,
     Null,
+    Error,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -108,46 +109,46 @@ fn trim_start(value: &str) -> (&str, usize) {
 }
 
 impl<'a> JSONValue<'a> {
-    pub fn parse(contents: &'a str) -> Result<JSONValue, JSONParsingError> {
+    pub fn load(contents: &'a str) -> JSONValue {
         let (contents, _) = trim_start(contents);
-        let value_type = JSONValue::peek_value_type(contents)?;
-        Ok(JSONValue {
+        let value_type = JSONValue::peek_value_type(contents);
+        JSONValue {
             contents,
             value_type,
-        })
+        }
     }
 
     /// Guess the type of the JSON variable serialised in the input string
     ///
     /// This function will never give the _wrong_ type, though it may return a type even if the
     /// input string is not well formed.
-    fn peek_value_type(contents: &'a str) -> Result<JSONValueType, JSONParsingError> {
+    fn peek_value_type(contents: &'a str) -> JSONValueType {
         // The contents must be trimmed
         match contents.chars().next() {
-            Some('{') => Ok(JSONValueType::Object),
-            Some('[') => Ok(JSONValueType::Array),
-            Some('"') => Ok(JSONValueType::String),
+            Some('{') => JSONValueType::Object,
+            Some('[') => JSONValueType::Array,
+            Some('"') => JSONValueType::String,
             Some('0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '-') => {
-                Ok(JSONValueType::Number)
+                JSONValueType::Number
             }
-            Some('t' | 'f') => Ok(JSONValueType::Bool),
-            Some('n') => Ok(JSONValueType::Null),
-            _ => Err(JSONParsingError::UnexpectedToken),
+            Some('t' | 'f') => JSONValueType::Bool,
+            Some('n') => JSONValueType::Null,
+            _ => JSONValueType::Error,
         }
     }
 
     /// Confirm that this [`JSONValue`] is proper JSON
     ///
     /// This will scan through the entire JSON and confirm that it is properly formatted.
-    /// See also [`JSONValue::parse_and_verify`]
+    /// See also [`JSONValue::parse_and_verify`].
     ///
     /// ## Example
     /// ```
     /// # use microjson::JSONValue;
-    /// let value = JSONValue::parse("[1,{},\"foo\"]").unwrap();
+    /// let value = JSONValue::load("[1,{},\"foo\"]");
     /// assert!(value.verify().is_ok());
     ///
-    /// let value = JSONValue::parse("[,,{\"").unwrap(); // This will not error
+    /// let value = JSONValue::load("[,,{\"");
     /// assert!(value.verify().is_err());
     /// ```
     pub fn verify(&self) -> Result<(), JSONParsingError> {
@@ -156,7 +157,7 @@ impl<'a> JSONValue<'a> {
     }
 
     pub fn parse_and_verify(contents: &'a str) -> Result<JSONValue, JSONParsingError> {
-        let value = JSONValue::parse(contents)?;
+        let value = JSONValue::load(contents);
         value.verify()?;
         Ok(value)
     }
@@ -294,10 +295,10 @@ impl<'a> JSONValue<'a> {
     /// ### Example
     /// ```
     /// # use microjson::{JSONValue, JSONParsingError};
-    /// let value = JSONValue::parse("-24").unwrap();
+    /// let value = JSONValue::load("-24");
     /// assert_eq!(value.read_integer(), Ok(-24));
     ///
-    /// let value = JSONValue::parse("5pi").unwrap();
+    /// let value = JSONValue::load("5pi");
     /// assert_eq!(value.read_integer(), Err(JSONParsingError::CannotParseInteger));
     /// ```
     pub fn read_integer(&self) -> Result<isize, JSONParsingError> {
@@ -315,10 +316,10 @@ impl<'a> JSONValue<'a> {
     /// ### Example
     /// ```
     /// # use microjson::{JSONValue, JSONParsingError};
-    /// let value = JSONValue::parse("2.4").unwrap();
+    /// let value = JSONValue::load("2.4");
     /// assert_eq!(value.read_float(), Ok(2.4));
     ///
-    /// let value = JSONValue::parse("5pi").unwrap();
+    /// let value = JSONValue::load("5pi");
     /// assert_eq!(value.read_float(), Err(JSONParsingError::CannotParseFloat));
     /// ```
     pub fn read_float(&self) -> Result<f32, JSONParsingError> {
@@ -337,7 +338,7 @@ impl<'a> JSONValue<'a> {
     /// ## Example
     /// ```
     /// # use microjson::JSONValue;
-    /// let value = JSONValue::parse("\"this is a string\"").unwrap();
+    /// let value = JSONValue::load("\"this is a string\"");
     /// assert_eq!(value.read_string(), Ok("this is a string"));
     /// ```
     pub fn read_string(&self) -> Result<&str, JSONParsingError> {
@@ -370,7 +371,7 @@ impl<'a> JSONValue<'a> {
     /// ### Example
     /// ```
     /// # use microjson::JSONValue;
-    /// let value = JSONValue::parse(r#" "\u27FC This is a string with unicode \u27FB""#).unwrap();
+    /// let value = JSONValue::load(r#" "\u27FC This is a string with unicode \u27FB""#);
     /// let string : Result<String, _> = value.iter_string().unwrap().collect::<Result<String, _>>();
     /// assert_eq!(string.unwrap(), "⟼ This is a string with unicode ⟻")
     /// ```
@@ -564,8 +565,8 @@ mod test {
         assert_eq!(value.read_integer(), Ok(42));
         assert!(value.read_string().is_err());
 
-        assert_eq!(JSONValue::parse("-98").unwrap().read_integer(), Ok(-98));
-        assert_eq!(JSONValue::parse("-99 ").unwrap().read_integer(), Ok(-99));
+        assert_eq!(JSONValue::load("-98").read_integer(), Ok(-98));
+        assert_eq!(JSONValue::load("-99 ").read_integer(), Ok(-99));
     }
 
     #[test]
@@ -584,7 +585,7 @@ mod test {
         assert!((value.read_float().unwrap() - 3.141592).abs() < 0.0001);
 
         assert_eq!(
-            JSONValue::parse("-3.43w").unwrap().read_float(),
+            JSONValue::load("-3.43w").read_float(),
             Err(JSONParsingError::CannotParseFloat)
         );
     }
@@ -597,7 +598,7 @@ mod test {
         assert!(value.read_integer().is_err());
         assert_eq!(value.read_string(), Ok("hello world"));
 
-        let value = JSONValue::parse("\"hello world\"   ").unwrap();
+        let value = JSONValue::load("\"hello world\"   ");
         assert_eq!(value.read_string(), Ok("hello world"));
     }
 
@@ -653,18 +654,21 @@ mod test {
             Some(JSONParsingError::KeyNotFound)
         );
 
-        assert!(JSONValue::parse("{\"foo\":[{}]}").is_ok());
-        assert!(JSONValue::parse("[{\"foo\":{}}]").is_ok());
+        assert!(JSONValue::load("{\"foo\":[{}]}").value_type != JSONValueType::Error);
+        assert!(JSONValue::load("[{\"foo\":{}}]").value_type != JSONValueType::Error);
     }
     #[test]
 
     fn this_broke_once() {
-        assert!(JSONValue::parse(
-            r##"
+        assert!(
+            JSONValue::load(
+                r##"
 [{"a":{"email":"d@"},"m":"#20\n\n.\n"}]
     "##
+            )
+            .value_type
+                != JSONValueType::Error
         )
-        .is_ok());
     }
 
     #[test]
@@ -689,41 +693,26 @@ mod test {
 
     #[test]
     fn peeking_value_type() {
-        assert_eq!(JSONValue::peek_value_type("123"), Ok(JSONValueType::Number));
-        assert_eq!(
-            JSONValue::peek_value_type("12.3"),
-            Ok(JSONValueType::Number)
-        );
-        assert_eq!(
-            JSONValue::peek_value_type("12.3e10"),
-            Ok(JSONValueType::Number)
-        );
-        assert_eq!(JSONValue::peek_value_type("-3"), Ok(JSONValueType::Number));
-        assert_eq!(
-            JSONValue::peek_value_type("-3.5"),
-            Ok(JSONValueType::Number)
-        );
-        assert_eq!(JSONValue::peek_value_type("null"), Ok(JSONValueType::Null));
-        assert_eq!(JSONValue::peek_value_type("true"), Ok(JSONValueType::Bool));
-        assert_eq!(JSONValue::peek_value_type("false"), Ok(JSONValueType::Bool));
-        assert_eq!(JSONValue::peek_value_type("[]"), Ok(JSONValueType::Array));
-        assert_eq!(JSONValue::peek_value_type("[12]"), Ok(JSONValueType::Array));
-        assert_eq!(
-            JSONValue::peek_value_type("[1,2]"),
-            Ok(JSONValueType::Array)
-        );
-        assert_eq!(JSONValue::peek_value_type("[[]]"), Ok(JSONValueType::Array));
-        assert_eq!(
-            JSONValue::peek_value_type("\"foo\""),
-            Ok(JSONValueType::String)
-        );
-        assert_eq!(JSONValue::peek_value_type("{}"), Ok(JSONValueType::Object));
+        assert_eq!(JSONValue::peek_value_type("123"), JSONValueType::Number);
+        assert_eq!(JSONValue::peek_value_type("12.3"), JSONValueType::Number);
+        assert_eq!(JSONValue::peek_value_type("12.3e10"), JSONValueType::Number);
+        assert_eq!(JSONValue::peek_value_type("-3"), JSONValueType::Number);
+        assert_eq!(JSONValue::peek_value_type("-3.5"), JSONValueType::Number);
+        assert_eq!(JSONValue::peek_value_type("null"), JSONValueType::Null);
+        assert_eq!(JSONValue::peek_value_type("true"), JSONValueType::Bool);
+        assert_eq!(JSONValue::peek_value_type("false"), JSONValueType::Bool);
+        assert_eq!(JSONValue::peek_value_type("[]"), JSONValueType::Array);
+        assert_eq!(JSONValue::peek_value_type("[12]"), JSONValueType::Array);
+        assert_eq!(JSONValue::peek_value_type("[1,2]"), JSONValueType::Array);
+        assert_eq!(JSONValue::peek_value_type("[[]]"), JSONValueType::Array);
+        assert_eq!(JSONValue::peek_value_type("\"foo\""), JSONValueType::String);
+        assert_eq!(JSONValue::peek_value_type("{}"), JSONValueType::Object);
         assert_eq!(
             JSONValue::peek_value_type("{\"a\":2}"),
-            Ok(JSONValueType::Object)
+            JSONValueType::Object
         );
-        assert!(JSONValue::peek_value_type("<").is_err());
-        assert!(JSONValue::peek_value_type("bar").is_err());
+        assert_eq!(JSONValue::peek_value_type("<"), JSONValueType::Error);
+        assert_eq!(JSONValue::peek_value_type("bar"), JSONValueType::Error);
     }
 
     #[test]
@@ -736,8 +725,7 @@ mod test {
     #[test]
     fn string_iterator() {
         let try_parse_string = |s| {
-            JSONValue::parse(s)
-                .unwrap()
+            JSONValue::load(s)
                 .iter_string()
                 .unwrap()
                 .collect::<Result<std::string::String, _>>()
@@ -770,7 +758,7 @@ mod test {
 
     #[test]
     fn object_iterator() {
-        let json_value = JSONValue::parse("{\"foo\" : [], \"bar\":{\"baz\": 2}}").unwrap();
+        let json_value = JSONValue::load("{\"foo\" : [], \"bar\":{\"baz\": 2}}");
         let keys = ["foo", "bar"];
         for (item, expected_key) in json_value.iter_object().unwrap().zip(&keys) {
             assert_eq!(item.unwrap().0, *expected_key);
