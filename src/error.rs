@@ -52,3 +52,25 @@ impl core::fmt::Display for JSONParsingError {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    extern crate std;
+    use std::string::ToString;
+
+    #[test]
+    fn error_formatting() {
+        // This is mostly to check the formatting doesn't crash or overlap, rather than the format exactly
+        let mut messages = std::collections::HashSet::new();
+        messages.insert(JSONParsingError::CannotParseArray.to_string());
+        messages.insert(JSONParsingError::CannotParseFloat.to_string());
+        messages.insert(JSONParsingError::CannotParseInteger.to_string());
+        messages.insert(JSONParsingError::CannotParseObject.to_string());
+        messages.insert(JSONParsingError::CannotParseString.to_string());
+        messages.insert(JSONParsingError::KeyNotFound.to_string());
+        messages.insert(JSONParsingError::UnexpectedToken.to_string());
+        messages.insert(JSONParsingError::EndOfStream.to_string());
+        assert_eq!(messages.len(), 8);
+    }
+}
