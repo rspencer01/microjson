@@ -20,8 +20,9 @@ jobs:
     - name: Install latest nightly
       uses: actions-rs/toolchain@v1
       with:
-          toolchain: nightly
-          override: true
+        toolchain: nightly
+        override: true
+        components: clippy
     - name: Build
       run: cargo build --verbose
     - name: Run tests
