@@ -472,15 +472,15 @@ impl<'a> Iterator for EscapedStringIterator<'a> {
                             let mut get_digit = || {
                                 self.contents
                                     .next()
-                                    .ok_or(JSONParsingError::CannotParseString)?
-                                    .to_digit(16)
-                                    .ok_or(JSONParsingError::CannotParseString)
+                                    .and_then(|x| x.to_digit(16))
+                                    .ok_or(JSONParsingError::TooShortEscapeSequence)
                             };
                             let mut parse_unicode = || {
                                 let code = [get_digit()?, get_digit()?, get_digit()?, get_digit()?];
                                 let code =
                                     (code[0] << 12) | (code[1] << 8) | (code[2] << 4) | code[3];
-                                char::from_u32(code).ok_or(JSONParsingError::CannotParseString)
+                                char::from_u32(code)
+                                    .ok_or(JSONParsingError::InvalidUnicodeEscapeSequence)
                             };
                             match parse_unicode() {
                                 Ok(chr) => Some(Ok(chr)),
@@ -490,9 +490,9 @@ impl<'a> Iterator for EscapedStringIterator<'a> {
                                 }
                             }
                         }
-                        Some(_) => {
+                        Some(x) => {
                             self.done = true;
-                            Some(Err(JSONParsingError::CannotParseString))
+                            Some(Err(JSONParsingError::InvalidEscapeSequence(x)))
                         }
                         None => None,
                     }
@@ -503,7 +503,7 @@ impl<'a> Iterator for EscapedStringIterator<'a> {
                 }
                 None => {
                     self.done = true;
-                    Some(Err(JSONParsingError::CannotParseString))
+                    Some(Err(JSONParsingError::EndOfStream))
                 }
                 _ => chr.map(Ok),
             }
@@ -699,20 +699,30 @@ mod test {
         assert_eq!(value, "\"I\n\thave\x08\x0ca\\dream/\"£");
 
         let value = try_parse_string(r#" " "#);
-        assert!(matches!(value, Err(JSONParsingError::CannotParseString)));
+        assert!(matches!(value, Err(JSONParsingError::EndOfStream)));
         let value = try_parse_string(r#" "foo\" "#);
-        assert!(matches!(value, Err(JSONParsingError::CannotParseString)));
-        let value = try_parse_string(r#" "foo\" "#);
-        assert!(matches!(value, Err(JSONParsingError::CannotParseString)));
+        assert!(matches!(value, Err(JSONParsingError::EndOfStream)));
         let value = try_parse_string(r#" "Odd escape: \?" "#);
-        assert!(matches!(value, Err(JSONParsingError::CannotParseString)));
+        assert!(matches!(
+            value,
+            Err(JSONParsingError::InvalidEscapeSequence('?'))
+        ));
         let value = try_parse_string(r#" "\uwxyz" "#);
-        assert!(matches!(value, Err(JSONParsingError::CannotParseString)));
-        let value = try_parse_string(r#" "\uxyz" "#);
-        assert!(matches!(value, Err(JSONParsingError::CannotParseString)));
+        assert!(matches!(
+            value,
+            Err(JSONParsingError::TooShortEscapeSequence)
+        ));
+        let value = try_parse_string(r#" "\u012" "#);
+        assert!(matches!(
+            value,
+            Err(JSONParsingError::TooShortEscapeSequence)
+        ));
         // This is not a single character codepoint under utf-16
         let value = try_parse_string(r#" "\ud834" "#);
-        assert!(matches!(value, Err(JSONParsingError::CannotParseString)));
+        assert!(matches!(
+            value,
+            Err(JSONParsingError::InvalidUnicodeEscapeSequence)
+        ));
     }
 
     #[test]
