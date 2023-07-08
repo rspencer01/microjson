@@ -20,6 +20,12 @@ pub enum JSONParsingError {
     UnexpectedToken,
     /// The input stream terminated while scanning a type
     EndOfStream,
+    /// Escape sequence too short (all escape sequences must be four hex digits long)
+    TooShortEscapeSequence,
+    /// Escape sequence doesn't map to a character
+    InvalidUnicodeEscapeSequence,
+    /// Escape pattern (\x) doesn't make sense
+    InvalidEscapeSequence(char),
 }
 
 impl core::fmt::Display for JSONParsingError {
@@ -49,6 +55,15 @@ impl core::fmt::Display for JSONParsingError {
             Self::CannotParseObject => {
                 write!(f, "error parsing object")
             }
+            Self::TooShortEscapeSequence => {
+                write!(f, "escape sequence fewer than four digits")
+            }
+            Self::InvalidUnicodeEscapeSequence => {
+                write!(f, "escape sequence doesn't map to a character")
+            }
+            Self::InvalidEscapeSequence(x) => {
+                write!(f, "invalid escape sequence \"\\{}\"", x)
+            }
         }
     }
 }
@@ -71,6 +86,10 @@ mod test {
         messages.insert(JSONParsingError::KeyNotFound.to_string());
         messages.insert(JSONParsingError::UnexpectedToken.to_string());
         messages.insert(JSONParsingError::EndOfStream.to_string());
-        assert_eq!(messages.len(), 8);
+        messages.insert(JSONParsingError::TooShortEscapeSequence.to_string());
+        messages.insert(JSONParsingError::InvalidUnicodeEscapeSequence.to_string());
+        messages.insert(JSONParsingError::InvalidEscapeSequence('q').to_string());
+        messages.insert(JSONParsingError::InvalidEscapeSequence('v').to_string());
+        assert_eq!(messages.len(), 12);
     }
 }
