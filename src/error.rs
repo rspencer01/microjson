@@ -2,7 +2,7 @@
 ///
 /// Due to the "scan once" philosophy of this crate, errors can either be returned when first
 /// constructing a [`JSONValue`] or when trying to read it using one of the accessors.
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum JSONParsingError {
     /// Attempt to parse an object that is not an array as an array
     CannotParseArray,
@@ -22,7 +22,7 @@ pub enum JSONParsingError {
     EndOfStream,
 }
 
-impl core::fmt::Debug for JSONParsingError {
+impl core::fmt::Display for JSONParsingError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match *self {
             Self::KeyNotFound => {
