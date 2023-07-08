@@ -57,6 +57,14 @@ fn trim_start(value: &str) -> (&str, usize) {
 }
 
 impl<'a> JSONValue<'a> {
+    /// Create a new `JSONValue` from an input string
+    ///
+    /// This is the primary method of constructing a [`JSONValue`]. It cannot fail, although the
+    /// value might have type [`JSONValueType::Error`]. However, a malformed payload may have a
+    /// type that is not `JSONValueType::Error`.
+    ///
+    /// If you want to load the payload and verify that it is valid JSON, use
+    /// [`JSONValue::load_and_verify`].
     pub fn load(contents: &'a str) -> JSONValue {
         let (contents, _) = trim_start(contents);
         let value_type = JSONValue::peek_value_type(contents);
@@ -88,7 +96,7 @@ impl<'a> JSONValue<'a> {
     /// Confirm that this [`JSONValue`] is proper JSON
     ///
     /// This will scan through the entire JSON and confirm that it is properly formatted.
-    /// See also [`JSONValue::parse_and_verify`].
+    /// See also [`JSONValue::load_and_verify`].
     ///
     /// ## Example
     /// ```
@@ -104,7 +112,10 @@ impl<'a> JSONValue<'a> {
         Ok(())
     }
 
-    pub fn parse_and_verify(contents: &'a str) -> Result<JSONValue, JSONParsingError> {
+    /// Load a JSON value from a payload and verify that it is valid JSON.
+    ///
+    /// This is equivalent to calling [`JSONValue::load`] followed by [`JSONValue::verify`].
+    pub fn load_and_verify(contents: &'a str) -> Result<JSONValue, JSONParsingError> {
         let value = JSONValue::load(contents);
         value.verify()?;
         Ok(value)
@@ -665,9 +676,9 @@ mod test {
 
     #[test]
     fn verifying() {
-        assert!(JSONValue::parse_and_verify(" 123 ").is_ok());
-        assert!(JSONValue::parse_and_verify("[123]").is_ok());
-        assert!(JSONValue::parse_and_verify("\"foo\"").is_ok());
+        assert!(JSONValue::load_and_verify(" 123 ").is_ok());
+        assert!(JSONValue::load_and_verify("[123]").is_ok());
+        assert!(JSONValue::load_and_verify("\"foo\"").is_ok());
     }
 
     #[test]
