@@ -9,7 +9,9 @@ pub fn massive_random(c: &mut Criterion) {
     path.push("resources/test/massive_random.json");
     let json_payload = read_to_string(&path).unwrap();
 
-    c.bench_function("load", |b| b.iter(|| JSONValue::parse_and_verify(&json_payload)));
+    c.bench_function("load", |b| {
+        b.iter(|| JSONValue::parse_and_verify(&json_payload))
+    });
 
     let value = JSONValue::parse(&json_payload);
     c.bench_function("single_retrieve", |b| {
@@ -37,7 +39,9 @@ pub fn large_array(c: &mut Criterion) {
     path.push("resources/test/list_of_squares.json");
     let json_payload = read_to_string(&path).unwrap();
 
-    c.bench_function("load_array", |b| b.iter(|| JSONValue::parse_and_verify(&json_payload)));
+    c.bench_function("load_array", |b| {
+        b.iter(|| JSONValue::parse_and_verify(&json_payload))
+    });
 
     let json = JSONValue::parse(&json_payload).unwrap();
     c.bench_function("read_array_sequentially", |b| {

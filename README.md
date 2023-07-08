@@ -25,11 +25,11 @@ You can read strings and integers easily:
 ```rust
 # use microjson::{JSONValue, JSONParsingError};
 # fn main() -> Result<(), JSONParsingError> {
-let integer = JSONValue::parse("42")?;
+let integer = JSONValue::load("42");
 
 let value : isize = integer.read_integer()?;
 
-let string = JSONValue::parse("\"hello there\"")?;
+let string = JSONValue::load("\"hello there\"");
 
 let value : &str = string.read_string()?;
 # Ok(())
@@ -42,7 +42,7 @@ You can read arrays like this:
 # fn main() -> Result<(), JSONParsingError> {
 let input = r#" [0, 1, 2, 3, 4, 5] "#;
 
-let array = JSONValue::parse(input)?;
+let array = JSONValue::load(input);
 
 for (n, item) in array.iter_array()?.enumerate() {
     let value = item.read_integer()?;
@@ -58,7 +58,7 @@ And, of course, any combination of the above:
 # fn main() -> Result<(), JSONParsingError> {
 let input = r#" { "arr": [3, "foo", 3.625, false] } "#;
 
-let object = JSONValue::parse(input)?;
+let object = JSONValue::load(input);
 
 assert_eq!(
     object.get_key_value("arr")?.iter_array()?.nth(2).unwrap().read_float()?,
@@ -74,7 +74,7 @@ If you are unsure what kind of data you have, you can query the [`JSONValueType`
 # fn main() -> Result<(), JSONParsingError> {
 let input = r#" 3.1415 "#;
 
-let object = JSONValue::parse(input)?;
+let object = JSONValue::load(input);
 
 match object.value_type {
     JSONValueType::String => {},
@@ -83,6 +83,7 @@ match object.value_type {
     JSONValueType::Array => {},
     JSONValueType::Bool => {},
     JSONValueType::Null => {},
+    JSONValueType::Error => {},
 }
 # Ok(())
 # }
@@ -94,7 +95,7 @@ Verifying Data
 To load some JSON, you need only call
 ```rust
 # use microjson::JSONValue;
-let value = JSONValue::parse(r#" [1,2,3,5"foo"] "#);
+let value = JSONValue::load(r#" [1,2,3,5"foo"] "#);
 ```
 However, this data is malformed.  [`JSONValue::parse`] will return an `Ok` result, as to determine that the data was corrupt would require scanning through the entire string.
 The error would only be reported when you attempted to iterate to the fourth item and parse it as a value.
