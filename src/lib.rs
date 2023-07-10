@@ -300,7 +300,7 @@ impl<'a> JSONValue<'a> {
     /// let value = JSONValue::load("\"this is a string\"");
     /// assert_eq!(value.read_string(), Ok("this is a string"));
     /// ```
-    pub fn read_string(&self) -> Result<&str, JSONParsingError> {
+    pub fn read_string(&self) -> Result<&'a str, JSONParsingError> {
         let (_, length) = JSONValue::parse_with_len(self.contents)?;
         if self.value_type != JSONValueType::String {
             return Err(JSONParsingError::CannotParseString);
@@ -732,5 +732,15 @@ mod test {
         for (item, expected_key) in json_value.iter_object().unwrap().zip(&keys) {
             assert_eq!(item.unwrap().0, *expected_key);
         }
+    }
+
+    #[test]
+    fn string_borrow_past_lifetime_of_value() {
+        let s = "\"abc\"";
+        let t: &str;
+        {
+            t = JSONValue::load(s).read_string().unwrap();
+        }
+        assert_eq!(t, &s[1..s.len()-1]);
     }
 }
