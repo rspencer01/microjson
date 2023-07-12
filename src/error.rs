@@ -14,6 +14,8 @@ pub enum JSONParsingError {
     CannotParseObject,
     /// Attempt to parse an object that is not a string as an string
     CannotParseString,
+    /// Attempt to parse an object that is not a boolean as a boolean
+    CannotParseBoolean,
     /// The key is not present in the object
     KeyNotFound,
     /// There was an unexpected token in the input stream
@@ -52,6 +54,9 @@ impl core::fmt::Display for JSONParsingError {
             Self::CannotParseString => {
                 write!(f, "error parsing string")
             }
+            Self::CannotParseBoolean => {
+                write!(f, "error parsing boolean")
+            }
             Self::CannotParseObject => {
                 write!(f, "error parsing object")
             }
@@ -83,6 +88,7 @@ mod test {
         messages.insert(JSONParsingError::CannotParseInteger.to_string());
         messages.insert(JSONParsingError::CannotParseObject.to_string());
         messages.insert(JSONParsingError::CannotParseString.to_string());
+        messages.insert(JSONParsingError::CannotParseBoolean.to_string());
         messages.insert(JSONParsingError::KeyNotFound.to_string());
         messages.insert(JSONParsingError::UnexpectedToken.to_string());
         messages.insert(JSONParsingError::EndOfStream.to_string());
@@ -90,6 +96,6 @@ mod test {
         messages.insert(JSONParsingError::InvalidUnicodeEscapeSequence.to_string());
         messages.insert(JSONParsingError::InvalidEscapeSequence('q').to_string());
         messages.insert(JSONParsingError::InvalidEscapeSequence('v').to_string());
-        assert_eq!(messages.len(), 12);
+        assert_eq!(messages.len(), 13);
     }
 }

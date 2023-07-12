@@ -15,7 +15,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #![doc = include_str!("../README.md")]
-#![no_std]
 
 mod error;
 pub use error::JSONParsingError;
@@ -121,6 +120,8 @@ impl<'a> JSONValue<'a> {
         Ok(value)
     }
 
+    /// Parse a payload and return the JSONValue appearing as its prefix, along with the length of
+    /// that prefix
     fn parse_with_len(contents: &'a str) -> Result<(JSONValue, usize), JSONParsingError> {
         let (contents, whitespace_trimmed) = trim_start(contents);
         let (value_type, value_len) = match contents.chars().next() {
@@ -245,6 +246,33 @@ impl<'a> JSONValue<'a> {
             },
             whitespace_trimmed + value_len,
         ))
+    }
+
+    /// Reads the [`JSONValue`] as a boolean
+    ///
+    /// If the type is not a [`JSONValueType::Boolean`], returns an `Err`.
+    ///
+    /// ### Example
+    /// ```
+    /// # use microjson::{JSONValue, JSONParsingError};
+    /// let value = JSONValue::load("true");
+    /// assert_eq!(value.read_boolean(), Ok(true));
+    ///
+    /// let value = JSONValue::load("f");
+    /// assert_eq!(value.read_boolean(), Err(JSONParsingError::CannotParseBoolean));
+    /// ```
+    pub fn read_boolean(&self) -> Result<bool, JSONParsingError> {
+        if self.value_type != JSONValueType::Bool {
+            return Err(JSONParsingError::CannotParseBoolean);
+        }
+        let contents = self.contents.trim_end();
+        if contents == "true" {
+            Ok(true)
+        } else if contents == "false" {
+            Ok(false)
+        } else {
+            Err(JSONParsingError::CannotParseBoolean)
+        }
     }
 
     /// Reads the [`JSONValue`] as an integer
@@ -517,6 +545,16 @@ mod test {
     extern crate std;
 
     #[test]
+    fn boolean() {
+        assert_eq!(JSONValue::load("true").read_boolean(), Ok(true));
+        assert_eq!(JSONValue::load("false").read_boolean(), Ok(false));
+        assert_eq!(
+            JSONValue::load("foo").read_boolean(),
+            Err(JSONParsingError::CannotParseBoolean)
+        );
+    }
+
+    #[test]
     fn integer() {
         let (value, value_len) = JSONValue::parse_with_len("42").unwrap();
         assert_eq!(value.value_type, JSONValueType::Number);
@@ -741,6 +779,17 @@ mod test {
         {
             t = JSONValue::load(s).read_string().unwrap();
         }
-        assert_eq!(t, &s[1..s.len()-1]);
+        assert_eq!(t, &s[1..s.len() - 1]);
+    }
+
+    #[test]
+    fn empty_object() {
+        let json_value = JSONValue::load("{}");
+        assert_eq!(json_value.value_type, JSONValueType::Object);
+        assert_eq!(
+            json_value.get_key_value("foo").err(),
+            Some(JSONParsingError::KeyNotFound)
+        );
+        assert_eq!(json_value.iter_object().unwrap().count(), 0);
     }
 }
