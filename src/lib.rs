@@ -248,6 +248,23 @@ impl<'a> JSONValue<'a> {
         ))
     }
 
+    /// Checks if the [`JSONValue`] is null
+    ///
+    /// If the value is malformed, returns false.
+    ///
+    /// ### Example
+    /// ```
+    /// # use microjson::{JSONValue, JSONParsingError};
+    /// let value = JSONValue::load("null");
+    /// assert_eq!(value.is_null(), true);
+    ///
+    /// let value = JSONValue::load("1293");
+    /// assert_eq!(value.is_null(), false);
+    /// ```
+    pub fn is_null(&self) -> bool {
+        self.contents.trim_end() == "null"
+    }
+
     /// Reads the [`JSONValue`] as a boolean
     ///
     /// If the type is not a [`JSONValueType::Boolean`], returns an `Err`.
@@ -543,6 +560,13 @@ impl<'a> Iterator for EscapedStringIterator<'a> {
 mod test {
     use super::*;
     extern crate std;
+
+    #[test]
+    fn is_null() {
+        assert_eq!(JSONValue::load("null").is_null(), true);
+        assert_eq!(JSONValue::load("1234").is_null(), false);
+        assert_eq!(JSONValue::load("<!or").is_null(), false);
+    }
 
     #[test]
     fn boolean() {
