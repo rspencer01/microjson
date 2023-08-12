@@ -106,13 +106,10 @@ If you need to know that the data is sound, use [`JSONValue::verify`].  Alternat
 let value = JSONValue::load_and_verify(r#" [1,2,3,5"foo"] "#);
 ```
 
-Features
---------
-  * [x] All JSON types
-  * [x] Strings with escape sequences
-  * [x] Parse ints (using [built in parser](https://doc.rust-lang.org/1.56.0/std/primitive.isize.html#method.from_str_radix))
-  * [x] Parse floats (using [built in parser](https://doc.rust-lang.org/1.56.0/std/primitive.f32.html#method.from_str))
-  * [x] Iterators over arrays
-  * [x] Object key lookup
-  * [x] Iterators over objects
-  * [x] Verify JSON
+Feature Flags
+-------------
+These flags can be enabled using [features](https://doc.rust-lang.org/cargo/reference/features.html).
+
+| Flag                   | Description                                                                                          |
+|:----------------------:|:----------------------------------------------------------------------------------------------------:|
+| `small_number_parsing` | Replaces the `std` float parsing with a **less accurate** version that has a smaller code footprint. |

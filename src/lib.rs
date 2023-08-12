@@ -20,6 +20,20 @@
 mod error;
 pub use error::JSONParsingError;
 
+#[cfg(any(feature = "small_number_parsing", test))]
+mod number_parsing;
+
+// NOTE(robert) We could override this with our own implementation, but looking at the source code,
+// it seems sufficiently compact that any gains we make will be marginal.
+static PARSE_INT: fn(&str) -> Result<isize, core::num::ParseIntError> =
+    <isize as core::str::FromStr>::from_str;
+
+#[cfg(not(feature = "small_number_parsing"))]
+static PARSE_FLOAT: fn(&str) -> Result<f32, core::num::ParseFloatError> =
+    <f32 as core::str::FromStr>::from_str;
+#[cfg(feature = "small_number_parsing")]
+static PARSE_FLOAT: fn(&str) -> Result<f32, ()> = number_parsing::parse_float;
+
 /// Denotes the different types of values JSON objects can have
 ///
 /// ### Numbers
@@ -311,7 +325,7 @@ impl<'a> JSONValue<'a> {
             return Err(JSONParsingError::CannotParseInteger);
         }
         let contents = self.contents.trim_end();
-        str::parse(contents).map_err(|_| JSONParsingError::CannotParseInteger)
+        PARSE_INT(contents).map_err(|_| JSONParsingError::CannotParseInteger)
     }
 
     /// Reads the [`JSONValue`] as a float
@@ -332,7 +346,7 @@ impl<'a> JSONValue<'a> {
             return Err(JSONParsingError::CannotParseFloat);
         }
         let contents = self.contents.trim_end();
-        str::parse(contents).map_err(|_| JSONParsingError::CannotParseFloat)
+        PARSE_FLOAT(contents).map_err(|_| JSONParsingError::CannotParseFloat)
     }
 
     /// Read the [`JSONValue`] as a string

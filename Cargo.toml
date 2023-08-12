@@ -13,6 +13,9 @@ documentation = "https://docs.rs/microjson/latest"
 
 [dependencies]
 
+[features]
+small_number_parsing = []
+
 [dev-dependencies]
 criterion = "0.3"
 
