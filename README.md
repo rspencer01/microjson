@@ -110,6 +110,7 @@ Feature Flags
 -------------
 These flags can be enabled using [features](https://doc.rust-lang.org/cargo/reference/features.html).
 
-| Flag                   | Description                                                                                          |
-|:----------------------:|:----------------------------------------------------------------------------------------------------:|
-| `small_number_parsing` | Replaces the `std` float parsing with a **less accurate** version that has a smaller code footprint. |
+| Flag                   | Description                                                                                           |
+|:----------------------:|:-----------------------------------------------------------------------------------------------------:|
+| `small_number_parsing` | Replaces the `core` float parsing with a **less accurate** version that has a smaller code footprint. |
+| `std`                  | Includes a marker to implement std::error::Error for JSONParsingError and use the standard library.   |

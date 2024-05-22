@@ -73,6 +73,9 @@ impl core::fmt::Display for JSONParsingError {
     }
 }
 
+#[cfg(feature = "std")]
+impl std::error::Error for JSONParsingError {}
+
 #[cfg(test)]
 mod test {
     use super::*;

@@ -1,6 +1,6 @@
 [package]
 name = "microjson"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2018"
 license = "GPL-3.0-only"
 repository = "https://github.com/rspencer01/microjson"
@@ -15,6 +15,7 @@ documentation = "https://docs.rs/microjson/latest"
 
 [features]
 small_number_parsing = []
+std = []
 
 [dev-dependencies]
 criterion = "0.3"
